@@ -7,6 +7,16 @@ body {
   background-color: #FAF9F6;
   color: #333333;
   -webkit-font-smoothing: antialiased;
+  /* 禁止整頁的文字選取，讓 App 更有原生感 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* 禁止 iOS 長按跳出選單 */
+}
+
+/* 允許輸入框可以選字 (不然會沒法打字) */
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* App Structure */
@@ -28,7 +38,8 @@ body {
     align-items: flex-end;
 }
 .app-logo { font-size: 14px; font-weight: 700; color: #B0BEC5; letter-spacing: 0.05em; text-transform: uppercase; }
-.app-date { font-size: 14px; color: #546E7A; font-weight: 500; }
+.app-date { font-size: 14px; color: #546E7A; font-weight: 500; transition: color 0.3s; }
+.app-date.editing-past { color: #E53935; font-weight: 700; } /* 補日記時日期變色提醒 */
 
 /* Main Content Area */
 .app-main {
@@ -114,6 +125,19 @@ body {
   transition: transform 0.1s;
 }
 .btn-primary:active { transform: scale(0.98); }
+
+.btn-secondary {
+    width: 100%;
+    margin-top: 12px;
+    border-radius: 14px;
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #546E7A;
+    background-color: #ECEFF1;
+    border: none;
+    cursor: pointer;
+}
 
 .btn-ghost {
     background: transparent;
@@ -205,7 +229,6 @@ body {
     line-height: 1.5;
 }
 
-/* Expanded State */
 .history-item.expanded { background-color: #FFF; border-color: #E3F2FD; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
 .history-item.expanded .history-item-details { display: block; animation: slideDown 0.2s ease; }
 .history-item.expanded .history-item-expand-icon { transform: rotate(180deg); color: #1565C0; }
@@ -227,4 +250,5 @@ body {
 .action-sheet-btn-danger { color: #E53935; background: #FFEBEE; border: none; }
 .action-sheet-btn-cancel { background: #F5F5F5; color: #78909C; border: none; }
 
+/* iOS Fixes */
 input, textarea, button { -webkit-appearance: none; appearance: none; }
