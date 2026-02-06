@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Life Progress</title>
+  
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="format-detection" content="telephone=no" />
+    
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Life Progress" />
+  
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#FAF9F6" />
+    
+    <link rel="apple-touch-icon" href="icon.PNG">
+    <link rel="icon" type="image/png" href="icon.PNG">
+  
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css" />
+  </head>
+<body>
+  <div class="app-root">
+    
+    <header class="app-header">
+       <div class="header-content">
+           <div class="app-logo">Life Progress</div>
+           <div class="app-date" id="currentDate"></div>
+       </div>
+    </header>
+
+    <main class="app-main">
+      <section class="tab-page" id="tab-write">
+        <h1 class="page-title">New Progress</h1>
+        
+        <div class="card form-card">
+          <label class="field-label" for="ccInput">Chief Complaint</label>
+          <input id="ccInput" class="input" type="text" placeholder="e.g. lack of insight" />
+
+          <label class="field-label" for="planInput">Plan</label>
+          <textarea id="planInput" class="textarea" rows="4" placeholder="Treatment plan..."></textarea>
+
+          <label class="field-label" for="noteInput">Progress Note</label>
+          <textarea id="noteInput" class="textarea" rows="6" placeholder="Detailed observations..."></textarea>
+
+          <button id="saveBtn" class="btn-primary">Save</button>
+        </div>
+      </section>
+
+      <section class="tab-page tab-page-hidden" id="tab-history">
+        <h1 class="page-title">History</h1>
+
+        <div class="card history-controls">
+          <input
+            id="searchInput"
+            class="input search-input"
+            type="search"
+            placeholder="Search records..."
+          />
+
+          <div class="history-toolbar">
+            <div class="toggle-group" role="tablist">
+              <button id="calendarViewBtn" class="toggle-btn toggle-btn-active">Calendar</button>
+              <button id="listViewBtn" class="toggle-btn">List</button>
+            </div>
+            <button id="aiSummaryBtn" class="btn-ghost">AI Summary</button>
+          </div>
+        </div>
+
+        <div id="calendarView" class="card calendar-card">
+          <div class="calendar-header">
+            <button id="prevMonthBtn" class="icon-btn">&lt;</button>
+            <div id="calendarMonthLabel" class="calendar-month-label"></div>
+            <button id="nextMonthBtn" class="icon-btn">&gt;</button>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <div id="listView" class="card list-view-hidden">
+          <div id="historyList" class="history-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-tabs">
+      <button class="tab-btn tab-btn-active" data-target="tab-write">
+        <span class="tab-icon">✎</span>
+        <span class="tab-label">New</span>
+      </button>
+      <button class="tab-btn" data-target="tab-history">
+        <span class="tab-icon">📅</span>
+        <span class="tab-label">History</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="entryModal" class="modal hidden">
+    <div id="modalBackdrop" class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div id="modalDateLabel" class="modal-title"></div>
+        <button id="modalCloseBtn" class="icon-btn">&times;</button>
+      </div>
+      <div id="modalEntries" class="modal-body"></div>
+    </div>
+  </div>
+
+  <div id="actionSheet" class="action-sheet hidden">
+    <div id="actionSheetBackdrop" class="modal-backdrop"></div>
+    <div class="action-sheet-content">
+      <button id="editEntryBtn" class="action-sheet-btn">Edit</button>
+      <button id="deleteEntryBtn" class="action-sheet-btn action-sheet-btn-danger">Delete</button>
+      <button id="cancelActionBtn" class="action-sheet-btn action-sheet-btn-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
