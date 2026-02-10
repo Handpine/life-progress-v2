@@ -1,66 +1,63 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Life Progress</title>
-  
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-    <meta name="format-detection" content="telephone=no" />
-    
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Life Progress" />
-  
-    <link rel="manifest" href="manifest.json" />
-    <meta name="theme-color" content="#FAF9F6" />
-    
-    <link rel="apple-touch-icon" href="icon.PNG">
-    <link rel="icon" type="image/png" href="icon.PNG">
-  
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css" />
-  </head>
+<head>
+  <meta charset="UTF-8" />
+  <title>Life Progress</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Life Progress" />
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#FAF9F6" />
+  <link rel="apple-touch-icon" href="icon.PNG">
+  <link rel="icon" type="image/png" href="icon.PNG">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
 <body>
   <div class="app-root">
     
     <header class="app-header">
        <div class="header-content">
            <div class="app-logo">Life Progress</div>
-           <div class="app-date" id="currentDate"></div>
+           <button id="logoutBtn" class="btn-ghost hidden" style="font-size: 11px; padding: 4px 8px;">Logout</button>
        </div>
+       <div class="app-date" id="currentDate" style="margin-top: 4px;"></div>
     </header>
+
+    <div id="notificationBanner" class="notification-banner hidden">
+        <span id="notificationText">It's Friday! Time for a weekly summary.</span>
+        <button id="notificationActionBtn" class="notification-btn">Go</button>
+        <button id="notificationCloseBtn" class="notification-close">&times;</button>
+    </div>
 
     <main class="app-main">
       <section class="tab-page" id="tab-write">
         <h1 class="page-title">New Progress</h1>
-        
         <div class="card form-card">
           <label class="field-label" for="ccInput">Chief Complaint</label>
           <input id="ccInput" class="input" type="text" placeholder="e.g. lack of insight" />
-
           <label class="field-label" for="planInput">Plan</label>
-          <textarea id="planInput" class="textarea" rows="4" placeholder="Treatment plan..."></textarea>
-
+          <textarea id="planInput" class="textarea auto-bullet" rows="3" placeholder="Treatment plan..."></textarea>
+          <label class="field-label" for="gratitudeInput">Gratitude</label>
+          <textarea id="gratitudeInput" class="textarea auto-bullet" rows="3" placeholder="Things I'm grateful for..."></textarea>
           <label class="field-label" for="noteInput">Progress Note</label>
-          <textarea id="noteInput" class="textarea" rows="6" placeholder="Detailed observations..."></textarea>
-
+          <textarea id="noteInput" class="textarea" rows="5" placeholder="Detailed observations..."></textarea>
           <button id="saveBtn" class="btn-primary">Save</button>
         </div>
       </section>
 
       <section class="tab-page tab-page-hidden" id="tab-history">
         <h1 class="page-title">History</h1>
-
         <div class="card history-controls">
-          <input
-            id="searchInput"
-            class="input search-input"
-            type="search"
-            placeholder="Search records..."
-          />
-
+          <input id="searchInput" class="input search-input" type="search" placeholder="Search records..." />
           <div class="history-toolbar">
             <div class="toggle-group" role="tablist">
               <button id="calendarViewBtn" class="toggle-btn toggle-btn-active">Calendar</button>
@@ -69,7 +66,6 @@
             <button id="aiSummaryBtn" class="btn-ghost">AI Summary</button>
           </div>
         </div>
-
         <div id="calendarView" class="card calendar-card">
           <div class="calendar-header">
             <button id="prevMonthBtn" class="icon-btn">&lt;</button>
@@ -78,7 +74,6 @@
           </div>
           <div class="calendar-grid" id="calendarGrid"></div>
         </div>
-
         <div id="listView" class="card list-view-hidden">
           <div id="historyList" class="history-list"></div>
         </div>
@@ -97,6 +92,31 @@
     </nav>
   </div>
 
+  <div id="authModal" class="modal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content" style="padding-top: 30px;">
+          <h2 style="text-align: center; margin-bottom: 20px; color: #37474F;">Welcome Back</h2>
+          <div class="card form-card" style="box-shadow: none; border: none; padding: 0;">
+              <label class="field-label">Email</label>
+              <input id="emailInput" class="input" type="email" placeholder="hello@example.com" />
+              <label class="field-label">Password</label>
+              <input id="passwordInput" class="input" type="password" placeholder="••••••••" />
+              
+              <button id="signInBtn" class="btn-primary">Sign In</button>
+              <button id="signUpBtn" class="btn-secondary">Create Account</button>
+              
+              <p id="authErrorMsg" style="color: #E53935; font-size: 13px; text-align: center; margin-top: 10px; min-height: 18px;"></p>
+          </div>
+      </div>
+  </div>
+
+  <div id="loadingOverlay" class="modal hidden" style="align-items: center; z-index: 300;">
+      <div style="background: white; padding: 20px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+          <div class="spinner"></div>
+          <div id="loadingText" style="margin-top: 10px; font-weight: 600; color: #546E7A;">Loading...</div>
+      </div>
+  </div>
+
   <div id="entryModal" class="modal hidden">
     <div id="modalBackdrop" class="modal-backdrop"></div>
     <div class="modal-content">
@@ -111,9 +131,37 @@
   <div id="actionSheet" class="action-sheet hidden">
     <div id="actionSheetBackdrop" class="modal-backdrop"></div>
     <div class="action-sheet-content">
-      <button id="editEntryBtn" class="action-sheet-btn">Edit</button>
-      <button id="deleteEntryBtn" class="action-sheet-btn action-sheet-btn-danger">Delete</button>
+      <div id="actionSheetButtons"></div> 
       <button id="cancelActionBtn" class="action-sheet-btn action-sheet-btn-cancel">Cancel</button>
+    </div>
+  </div>
+
+  <div id="confirmModal" class="modal hidden">
+    <div class="modal-backdrop" id="confirmBackdrop"></div>
+    <div class="modal-content confirm-content">
+      <div id="confirmMessage" class="confirm-message"></div>
+      <div class="confirm-actions">
+        <button id="confirmCancelBtn" class="action-sheet-btn action-sheet-btn-cancel">Cancel</button>
+        <button id="confirmOkayBtn" class="action-sheet-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="apiKeyModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Setup AI</div>
+            <button id="apiKeyCloseBtn" class="icon-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size: 14px; color: #546E7A; line-height: 1.5; margin-bottom: 16px;">
+                Enter your Google Gemini API Key. Stored locally.
+            </p>
+            <label class="field-label">Gemini API Key</label>
+            <input id="apiKeyInput" class="input" type="password" placeholder="Paste key here..." />
+            <button id="saveApiKeyBtn" class="btn-primary">Save</button>
+        </div>
     </div>
   </div>
 
