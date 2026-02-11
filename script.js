@@ -184,13 +184,12 @@ async function uploadEntry(entry) {
         return;
     }
     
-    // [修正點] 加入 type 的防呆機制，如果沒有 type 就預設為 'entry'
     const dbPayload = {
         id: entry.id,
         user_id: currentUser.id,
         date_key: entry.dateKey,
         created_at: new Date(entry.createdAt).toISOString(),
-        type: entry.type || 'entry', // 這裡加了保險
+        type: entry.type || 'entry', 
         summary_type: entry.summaryType,
         chief_complaint: entry.chiefComplaint,
         plan: entry.plan,
@@ -686,7 +685,7 @@ async function handleSave() {
       plan: plan,
       gratitude: gratitude,
       note: note,
-      type: 'entry' // [修正點] 加入 type，避免資料庫報錯
+      type: 'entry' 
     };
     entries.unshift(newEntry);
     
@@ -793,6 +792,7 @@ function renderList(filterText = "") {
     if (isSummary) { item.classList.add('history-item-summary'); }
     const dateStr = new Date(e.createdAt).toLocaleDateString();
    
+    // [修改] 移除了 style="color:#2E7D32;"
     item.innerHTML = `
       <div class="history-item-header">
          <div>
@@ -803,7 +803,7 @@ function renderList(filterText = "") {
       </div>
       <div class="history-item-details">
          ${e.plan ? `<strong>Plan:</strong><div class="list-text">${e.plan}</div><br>` : ''}
-         ${e.gratitude ? `<strong>Gratitude:</strong><div class="list-text" style="color:#2E7D32;">${e.gratitude}</div><br>` : ''}
+         ${e.gratitude ? `<strong>Gratitude:</strong><div class="list-text">${e.gratitude}</div><br>` : ''} 
          ${e.note ? `<strong>${isSummary ? 'AI Analysis:' : 'Note:'}</strong><div class="list-text">${e.note}</div>` : ''}
       </div>
     `;
@@ -936,12 +936,14 @@ function openDateModal(dateKey) {
         const div = document.createElement("div");
         div.className = "history-item"; 
         if (e.type === 'summary') { div.classList.add('history-item-summary'); }
+        
+        // [修改] 移除了 style="color:#2E7D32;"
         div.innerHTML = `
            <div class="history-item-date">${e.type === 'summary' ? 'AI Summary' : 'Entry'}</div>
            <div class="history-item-title">${e.chiefComplaint || '-'}</div>
            <div class="history-item-details" style="display:block; margin-top:8px; border:none;">
              ${e.plan ? `<strong>Plan:</strong><div class="list-text">${e.plan}</div><br>` : ''}
-             ${e.gratitude ? `<strong>Gratitude:</strong><div class="list-text" style="color:#2E7D32;">${e.gratitude}</div><br>` : ''}
+             ${e.gratitude ? `<strong>Gratitude:</strong><div class="list-text">${e.gratitude}</div><br>` : ''}
              ${e.note ? `<strong>${e.type === 'summary' ? 'Analysis' : 'Note'}:</strong><div class="list-text">${e.note}</div>` : ''}
            </div>
         `;
