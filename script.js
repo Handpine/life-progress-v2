@@ -1,4 +1,4 @@
-console.log("Script Started - Vibe Coding!"); // 看到這行代表 JS 成功啟動
+console.log("Script Started - Vibe Coding!"); 
 
 const STORAGE_KEY = "lifeProgressEntries";
 const API_KEY_STORAGE = "geminiApiKey";
@@ -11,7 +11,6 @@ let longPressTimer = null;
 let longPressTargetId = null;
 let editingEntryId = null;
 let targetDate = null; 
-// [修改] 變數改名，避免跟官方庫衝突
 let supabaseClient = null; 
 let currentUser = null;
 
@@ -110,7 +109,6 @@ function initSupabase(url, key) {
         return;
     }
     try {
-        // [修改] 使用新的變數名稱
         supabaseClient = window.supabase.createClient(url, key);
         sbUrlInput.value = url;
         sbKeyInput.value = key;
@@ -121,8 +119,8 @@ function initSupabase(url, key) {
 }
 
 async function checkUserSession() {
-    if(!supabaseClient) return; // [修改]
-    const { data: { session } } = await supabaseClient.auth.getSession(); // [修改]
+    if(!supabaseClient) return;
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         currentUser = session.user;
         updateAuthUI(true);
@@ -147,10 +145,9 @@ function updateAuthUI(isLoggedIn) {
 
 // --- Sync Logic ---
 async function syncEntries() {
-    if (!supabaseClient || !currentUser) return; // [修改]
+    if (!supabaseClient || !currentUser) return;
     showLoading("Syncing...");
     
-    // [修改] 使用 supabaseClient
     const { data, error } = await supabaseClient
         .from('entries')
         .select('*')
@@ -182,17 +179,18 @@ async function syncEntries() {
 }
 
 async function uploadEntry(entry) {
-    if (!supabaseClient || !currentUser) { // [修改]
+    if (!supabaseClient || !currentUser) {
         saveLocalEntries();
         return;
     }
     
+    // [修正點] 加入 type 的防呆機制，如果沒有 type 就預設為 'entry'
     const dbPayload = {
         id: entry.id,
         user_id: currentUser.id,
         date_key: entry.dateKey,
         created_at: new Date(entry.createdAt).toISOString(),
-        type: entry.type,
+        type: entry.type || 'entry', // 這裡加了保險
         summary_type: entry.summaryType,
         chief_complaint: entry.chiefComplaint,
         plan: entry.plan,
@@ -201,7 +199,6 @@ async function uploadEntry(entry) {
         updated_at: entry.updatedAt
     };
 
-    // [修改] 使用 supabaseClient
     const { error } = await supabaseClient
         .from('entries')
         .upsert(dbPayload, { onConflict: 'id' });
@@ -215,7 +212,7 @@ async function uploadEntry(entry) {
 }
 
 async function deleteEntryCloud(id) {
-    if (supabaseClient && currentUser) { // [修改]
+    if (supabaseClient && currentUser) {
         const { error } = await supabaseClient.from('entries').delete().eq('id', id);
         if (error) console.error("Delete error", error);
     }
@@ -237,7 +234,6 @@ async function handleLogin() {
     initSupabase(url, key);
 
     showLoading("Logging in...");
-    // [修改] 使用 supabaseClient
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     hideLoading();
 
@@ -266,7 +262,6 @@ async function handleSignUp() {
     initSupabase(url, key);
 
     showLoading("Creating account...");
-    // [修改] 使用 supabaseClient
     const { data, error } = await supabaseClient.auth.signUp({ email, password });
     hideLoading();
 
@@ -281,7 +276,7 @@ async function handleSignUp() {
 }
 
 async function handleLogout() {
-    if(supabaseClient) await supabaseClient.auth.signOut(); // [修改]
+    if(supabaseClient) await supabaseClient.auth.signOut();
     currentUser = null;
     updateAuthUI(false);
     entries = []; 
@@ -690,7 +685,8 @@ async function handleSave() {
       chiefComplaint: cc,
       plan: plan,
       gratitude: gratitude,
-      note: note
+      note: note,
+      type: 'entry' // [修正點] 加入 type，避免資料庫報錯
     };
     entries.unshift(newEntry);
     
