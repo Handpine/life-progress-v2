@@ -180,7 +180,7 @@ async function syncEntries() {
 
 async function uploadEntry(entry) {
     if (!supabaseClient || !currentUser) {
-        saveLocalEntries(); // Fallback for offline/no-auth
+        saveLocalEntries();
         return;
     }
     
@@ -207,7 +207,6 @@ async function uploadEntry(entry) {
         alert("Cloud save failed, saved locally.");
     }
     
-    // Always save local to be safe
     saveLocalEntries();
 }
 
@@ -216,7 +215,7 @@ async function deleteEntryCloud(id) {
         const { error } = await supabaseClient.from('entries').delete().eq('id', id);
         if (error) console.error("Delete error", error);
     }
-    // No saveLocalEntries here. We handle local state in executeDeleteEntry
+    // No need to saveLocalEntries here, executeDeleteEntry handles local state
 }
 
 // --- Auth Actions ---
@@ -405,7 +404,7 @@ async function handleGenerateSummary(type, overwriteId = null) {
         return;
     }
 
-    // [修正] 指定繁體中文
+    // [修改] 指定繁體中文
     let promptText = `You are a helpful life coach assistant. Please summarize the following progress notes for my ${type} review in Traditional Chinese (繁體中文).
     Identify key achievements, recurring problems, things I was grateful for, and future plans.
     Format the output nicely with bullet points.
@@ -794,6 +793,7 @@ function renderList(filterText = "") {
     if (isSummary) { item.classList.add('history-item-summary'); }
     const dateStr = new Date(e.createdAt).toLocaleDateString();
    
+    // [修改] 移除了 style="color:#2E7D32;"
     item.innerHTML = `
       <div class="history-item-header">
          <div>
@@ -812,6 +812,39 @@ function renderList(filterText = "") {
     addLongPressEvent(item, e.id, 'item');
     historyList.appendChild(item);
   });
+}
+
+// [修正] 關鍵修復：這裡加上了變數傳遞，解決了 ID 遺失的問題
+function handleDeleteEntryClick() {
+    if (!longPressTargetId) return;
+    const idToDelete = longPressTargetId; // 1. 先抓取 ID
+    closeActionSheet(); // 2. 這會把 longPressTargetId 變 null
+    // 3. 把 idToDelete 傳進去
+    showConfirmModal("Delete this entry?", true, () => executeDeleteEntry(idToDelete));
+}
+
+function executeDeleteEntry(id) { // [修正] 接收 ID 參數
+  const entry = entries.find(e => e.id === id); // 使用傳進來的 ID
+  const dateKey = entry ? entry.dateKey : null;
+
+  // 1. Fire Cloud Delete (Background)
+  deleteEntryCloud(id);
+
+  // 2. Optimistic Local Update
+  entries = entries.filter(e => e.id !== id);
+  
+  // 3. Persist Local Changes Immediately [修正]
+  saveLocalEntries();
+
+  // 4. Update UI
+  if (!calendarView.classList.contains("list-view-hidden")) {
+      renderCalendar();
+  } else {
+      renderList(searchInput.value.toLowerCase());
+  }
+  if (!entryModal.classList.contains("hidden") && dateKey) {
+      openDateModal(dateKey); 
+  }
 }
 
 function addLongPressEvent(el, idOrDate, type) {
@@ -859,36 +892,6 @@ function openActionSheet(id) {
 function closeActionSheet() {
   actionSheet.classList.add("hidden");
   longPressTargetId = null;
-}
-
-function handleDeleteEntryClick() {
-    if (!longPressTargetId) return;
-    closeActionSheet(); 
-    showConfirmModal("Delete this entry?", true, executeDeleteEntry);
-}
-
-function executeDeleteEntry() {
-  const entry = entries.find(e => e.id === longPressTargetId);
-  const dateKey = entry ? entry.dateKey : null;
-
-  // 1. Fire Cloud Delete (Background)
-  deleteEntryCloud(longPressTargetId);
-
-  // 2. Optimistic Local Update
-  entries = entries.filter(e => e.id !== longPressTargetId);
-  
-  // 3. Persist Local Changes Immediately [修正]
-  saveLocalEntries();
-
-  // 4. Update UI
-  if (!calendarView.classList.contains("list-view-hidden")) {
-      renderCalendar();
-  } else {
-      renderList(searchInput.value.toLowerCase());
-  }
-  if (!entryModal.classList.contains("hidden") && dateKey) {
-      openDateModal(dateKey); 
-  }
 }
 
 function handleEditEntry() {
