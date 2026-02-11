@@ -1,168 +1,197 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Life Progress</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <meta name="format-detection" content="telephone=no" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Life Progress" />
-
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#FAF9F6" />
-  <link rel="apple-touch-icon" href="icon.PNG">
-  <link rel="icon" type="image/png" href="icon.PNG">
-
+  <meta name="theme-color" content="#FAF9F6">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+
   <div class="app-root">
     
     <header class="app-header">
-       <div class="header-content">
-           <div class="app-logo">Life Progress</div>
-           <button id="logoutBtn" class="btn-ghost hidden" style="font-size: 11px; padding: 4px 8px;">Logout</button>
-       </div>
-       <div class="app-date" id="currentDate" style="margin-top: 4px;"></div>
+      <div class="header-content">
+        <div class="app-logo">Life Progress</div>
+        <div class="header-right">
+            <div id="currentDate" class="app-date">Loading...</div>
+            <button id="settingsBtn" class="icon-btn-small">⚙️</button>
+        </div>
+      </div>
     </header>
 
-    <div id="notificationBanner" class="notification-banner hidden">
-        <span id="notificationText">It's Friday! Time for a weekly summary.</span>
-        <button id="notificationActionBtn" class="notification-btn">Go</button>
-        <button id="notificationCloseBtn" class="notification-close">&times;</button>
-    </div>
-
     <main class="app-main">
-      <section class="tab-page" id="tab-write">
-        <h1 class="page-title">New Progress</h1>
-        <div class="card form-card">
-          <label class="field-label" for="ccInput">Chief Complaint</label>
-          <input id="ccInput" class="input" type="text" placeholder="e.g. lack of insight" />
-          <label class="field-label" for="planInput">Plan</label>
-          <textarea id="planInput" class="textarea auto-bullet" rows="3" placeholder="Treatment plan..."></textarea>
-          <label class="field-label" for="gratitudeInput">Gratitude</label>
-          <textarea id="gratitudeInput" class="textarea auto-bullet" rows="3" placeholder="Things I'm grateful for..."></textarea>
-          <label class="field-label" for="noteInput">Progress Note</label>
-          <textarea id="noteInput" class="textarea" rows="5" placeholder="Detailed observations..."></textarea>
+      
+      <div id="tab-write" class="tab-page">
+        <h1 class="page-title">Daily Entry</h1>
+
+        <div id="aiActionArea" class="ai-banner hidden">
+            <div id="aiActionText">It's Friday! Review your week?</div>
+            <button id="generateSummaryBtn" class="btn-ai">✨ Generate Summary</button>
+        </div>
+        
+        <div class="card">
+          <label class="field-label">Chief Complaint / Title</label>
+          <input type="text" id="ccInput" class="input" placeholder="e.g. Headache, Python Study, Gym...">
+
+          <label class="field-label">Plan</label>
+          <textarea id="planInput" class="textarea" rows="4" placeholder="• What's the plan?"></textarea>
+
+          <label class="field-label">Gratitude</label>
+          <textarea id="gratitudeInput" class="textarea" rows="3" placeholder="• What are you thankful for?"></textarea>
+
+          <label class="field-label">Note</label>
+          <textarea id="noteInput" class="textarea" rows="4" placeholder="Anything else?"></textarea>
+
           <button id="saveBtn" class="btn-primary">Save</button>
         </div>
-      </section>
+      </div>
 
-      <section class="tab-page tab-page-hidden" id="tab-history">
+      <div id="tab-history" class="tab-page tab-page-hidden">
         <h1 class="page-title">History</h1>
-        <div class="card history-controls">
-          <input id="searchInput" class="input search-input" type="search" placeholder="Search records..." />
-          <div class="history-toolbar">
-            <div class="toggle-group" role="tablist">
-              <button id="calendarViewBtn" class="toggle-btn toggle-btn-active">Calendar</button>
-              <button id="listViewBtn" class="toggle-btn">List</button>
+
+        <div class="input-wrapper" style="margin-bottom: 16px;">
+            <input type="text" id="searchInput" class="input" placeholder="Search entries..." style="padding: 12px;">
+        </div>
+
+        <div class="history-toolbar">
+            <div class="toggle-group">
+                <button id="calendarViewBtn" class="toggle-btn toggle-btn-active">Calendar</button>
+                <button id="listViewBtn" class="toggle-btn">List</button>
             </div>
-            <button id="aiSummaryBtn" class="btn-ghost">AI Summary</button>
-          </div>
         </div>
-        <div id="calendarView" class="card calendar-card">
-          <div class="calendar-header">
-            <button id="prevMonthBtn" class="icon-btn">&lt;</button>
-            <div id="calendarMonthLabel" class="calendar-month-label"></div>
-            <button id="nextMonthBtn" class="icon-btn">&gt;</button>
-          </div>
-          <div class="calendar-grid" id="calendarGrid"></div>
+
+        <div id="calendarView" style="margin-top: 20px;">
+            <div class="calendar-header">
+                <button id="prevMonthBtn" class="icon-btn">‹</button>
+                <span id="calendarMonthLabel" class="calendar-month-label">Month Year</span>
+                <button id="nextMonthBtn" class="icon-btn">›</button>
+            </div>
+            <div id="calendarGrid" class="calendar-grid">
+                </div>
         </div>
-        <div id="listView" class="card list-view-hidden">
-          <div id="historyList" class="history-list"></div>
+
+        <div id="listView" class="list-view-hidden" style="margin-top: 20px;">
+            <div id="historyList">
+                </div>
         </div>
-      </section>
+      </div>
+
     </main>
 
     <nav class="bottom-tabs">
       <button class="tab-btn tab-btn-active" data-target="tab-write">
         <span class="tab-icon">✎</span>
-        <span class="tab-label">New</span>
+        Write
       </button>
       <button class="tab-btn" data-target="tab-history">
         <span class="tab-icon">📅</span>
-        <span class="tab-label">History</span>
+        History
       </button>
     </nav>
-  </div>
 
-  <div id="authModal" class="modal">
-      <div class="modal-backdrop"></div>
-      <div class="modal-content" style="padding-top: 30px;">
-          <h2 style="text-align: center; margin-bottom: 20px; color: #37474F;">Welcome Back</h2>
-          <div class="card form-card" style="box-shadow: none; border: none; padding: 0;">
-              <label class="field-label">Email</label>
-              <input id="emailInput" class="input" type="email" placeholder="hello@example.com" />
-              <label class="field-label">Password</label>
-              <input id="passwordInput" class="input" type="password" placeholder="••••••••" />
-              
-              <button id="signInBtn" class="btn-primary">Sign In</button>
-              <button id="signUpBtn" class="btn-secondary">Create Account</button>
-              
-              <p id="authErrorMsg" style="color: #E53935; font-size: 13px; text-align: center; margin-top: 10px; min-height: 18px;"></p>
-          </div>
-      </div>
-  </div>
-
-  <div id="loadingOverlay" class="modal hidden" style="align-items: center; z-index: 300;">
-      <div style="background: white; padding: 20px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
-          <div class="spinner"></div>
-          <div id="loadingText" style="margin-top: 10px; font-weight: 600; color: #546E7A;">Loading...</div>
-      </div>
   </div>
 
   <div id="entryModal" class="modal hidden">
-    <div id="modalBackdrop" class="modal-backdrop"></div>
+    <div class="modal-backdrop" id="modalBackdrop"></div>
     <div class="modal-content">
       <div class="modal-header">
-        <div id="modalDateLabel" class="modal-title"></div>
-        <button id="modalCloseBtn" class="icon-btn">&times;</button>
+        <div id="modalDateLabel" class="modal-title">Date</div>
+        <button id="modalCloseBtn" class="btn-ghost">Close</button>
       </div>
-      <div id="modalEntries" class="modal-body"></div>
+      <div id="modalEntries">
+        </div>
     </div>
   </div>
 
   <div id="actionSheet" class="action-sheet hidden">
-    <div id="actionSheetBackdrop" class="modal-backdrop"></div>
+    <div class="modal-backdrop" id="actionSheetBackdrop"></div>
     <div class="action-sheet-content">
-      <div id="actionSheetButtons"></div> 
+      <button id="regenerateAiBtn" class="action-sheet-btn hidden" style="color: #673AB7; background-color: #EDE7F6;">✨ Regenerate AI Summary</button>
+      <button id="editEntryBtn" class="action-sheet-btn">Edit</button>
+      <button id="deleteEntryBtn" class="action-sheet-btn action-sheet-btn-danger">Delete</button>
       <button id="cancelActionBtn" class="action-sheet-btn action-sheet-btn-cancel">Cancel</button>
     </div>
   </div>
 
   <div id="confirmModal" class="modal hidden">
-    <div class="modal-backdrop" id="confirmBackdrop"></div>
-    <div class="modal-content confirm-content">
-      <div id="confirmMessage" class="confirm-message"></div>
-      <div class="confirm-actions">
-        <button id="confirmCancelBtn" class="action-sheet-btn action-sheet-btn-cancel">Cancel</button>
-        <button id="confirmOkayBtn" class="action-sheet-btn">Confirm</button>
+      <div class="modal-backdrop" id="confirmBackdrop"></div>
+      <div class="modal-content confirm-content">
+          <div id="confirmMessage" class="confirm-message">Are you sure?</div>
+          <div class="confirm-actions">
+              <button id="confirmCancelBtn" class="action-sheet-btn action-sheet-btn-cancel">Cancel</button>
+              <button id="confirmOkayBtn" class="action-sheet-btn btn-primary">Okay</button>
+          </div>
       </div>
-    </div>
   </div>
 
-  <div id="apiKeyModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-        <div class="modal-header">
-            <div class="modal-title">Setup AI</div>
-            <button id="apiKeyCloseBtn" class="icon-btn">&times;</button>
-        </div>
-        <div class="modal-body">
-            <p style="font-size: 14px; color: #546E7A; line-height: 1.5; margin-bottom: 16px;">
-                Enter your Google Gemini API Key. Stored locally.
-            </p>
-            <label class="field-label">Gemini API Key</label>
-            <input id="apiKeyInput" class="input" type="password" placeholder="Paste key here..." />
-            <button id="saveApiKeyBtn" class="btn-primary">Save</button>
-        </div>
-    </div>
+  <div id="settingsModal" class="modal hidden">
+      <div class="modal-backdrop" id="settingsBackdrop"></div>
+      <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">Settings & Sync</div>
+            <button id="settingsCloseBtn" class="btn-ghost">Close</button>
+          </div>
+          <div style="padding-bottom: 20px; overflow-y: auto; max-height: 70vh;">
+              
+              <div id="authSection">
+                  <h3 style="font-size: 14px; color: #37474F; margin-bottom: 12px;">Cloud Sync (Supabase)</h3>
+                  
+                  <div id="loginForm">
+                      <label class="field-label">Supabase URL</label>
+                      <input type="text" id="sbUrlInput" class="input" placeholder="https://xyz.supabase.co">
+                      
+                      <label class="field-label">Supabase Anon Key</label>
+                      <input type="password" id="sbKeyInput" class="input" placeholder="eyJhbGci...">
+
+                      <hr style="border: 0; border-top: 1px solid #ECEFF1; margin: 16px 0;">
+
+                      <label class="field-label">Email</label>
+                      <input type="email" id="emailInput" class="input" placeholder="you@example.com">
+                      
+                      <label class="field-label">Password</label>
+                      <input type="password" id="passwordInput" class="input" placeholder="********">
+
+                      <div style="display: flex; gap: 10px; margin-top: 16px;">
+                          <button id="btnSignUp" class="btn-secondary">Sign Up</button>
+                          <button id="btnLogin" class="btn-primary" style="margin-top:0;">Login</button>
+                      </div>
+                  </div>
+
+                  <div id="userStatus" class="hidden" style="background: #E8F5E9; padding: 12px; border-radius: 12px; margin-top: 10px;">
+                      <div style="color: #2E7D32; font-weight: 600; font-size: 14px;">Logged in as:</div>
+                      <div id="userEmailDisplay" style="color: #1B5E20; font-size: 13px; margin-bottom: 8px;"></div>
+                      <button id="btnLogout" class="btn-secondary" style="margin-top:0; font-size:12px; padding: 8px;">Logout</button>
+                  </div>
+                  <div id="authMsg" style="margin-top:10px; font-size: 13px; text-align: center;"></div>
+              </div>
+
+              <hr style="border: 0; border-top: 1px solid #ECEFF1; margin: 24px 0;">
+
+              <h3 style="font-size: 14px; color: #37474F; margin-bottom: 12px;">AI Settings</h3>
+              <label class="field-label">Gemini API Key</label>
+              <div style="font-size: 12px; color: #78909C; margin-bottom: 8px;">
+                  Stored locally. Required for AI summary.
+              </div>
+              <input type="password" id="apiKeyInput" class="input" placeholder="Paste Gemini Key here...">
+              <button id="saveApiKeyBtn" class="btn-primary" style="margin-top: 16px;">Save AI Key</button>
+              <div id="keyStatus" style="margin-top:10px; font-size: 13px; color: green; display: none;">Key saved!</div>
+          </div>
+      </div>
+  </div>
+
+  <div id="loadingOverlay" class="hidden" style="position: fixed; inset: 0; background: rgba(250, 249, 246, 0.95); z-index: 300; justify-content: center; align-items: center; flex-direction: column;">
+      <div class="sun-spinner">
+        <div class="sun-core"></div>
+        <div class="sun-rays"></div>
+      </div>
+      <div id="loadingText" style="margin-top: 24px; font-weight: 500; font-size: 14px; color: #8D6E63; letter-spacing: 0.05em;">Thinking...</div>
   </div>
 
   <script src="script.js"></script>
