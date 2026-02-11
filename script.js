@@ -180,7 +180,7 @@ async function syncEntries() {
 
 async function uploadEntry(entry) {
     if (!supabaseClient || !currentUser) {
-        saveLocalEntries();
+        saveLocalEntries(); // Fallback for offline/no-auth
         return;
     }
     
@@ -207,6 +207,7 @@ async function uploadEntry(entry) {
         alert("Cloud save failed, saved locally.");
     }
     
+    // Always save local to be safe
     saveLocalEntries();
 }
 
@@ -215,7 +216,7 @@ async function deleteEntryCloud(id) {
         const { error } = await supabaseClient.from('entries').delete().eq('id', id);
         if (error) console.error("Delete error", error);
     }
-    saveLocalEntries();
+    // No saveLocalEntries here. We handle local state in executeDeleteEntry
 }
 
 // --- Auth Actions ---
@@ -404,7 +405,8 @@ async function handleGenerateSummary(type, overwriteId = null) {
         return;
     }
 
-    let promptText = `You are a helpful life coach assistant. Please summarize the following progress notes for my ${type} review.
+    // [修正] 指定繁體中文
+    let promptText = `You are a helpful life coach assistant. Please summarize the following progress notes for my ${type} review in Traditional Chinese (繁體中文).
     Identify key achievements, recurring problems, things I was grateful for, and future plans.
     Format the output nicely with bullet points.
     
@@ -667,7 +669,7 @@ async function handleSave() {
       entries[index].note = note;
       entries[index].updatedAt = new Date().getTime();
       
-      // Upload update
+      saveLocalEntries(); // [修正] 本地即時存檔
       await uploadEntry(entries[index]);
     }
     editingEntryId = null;
@@ -689,7 +691,7 @@ async function handleSave() {
     };
     entries.unshift(newEntry);
     
-    // Upload new
+    saveLocalEntries(); // [修正] 本地即時存檔
     await uploadEntry(newEntry);
    
     targetDate = null;
@@ -792,7 +794,6 @@ function renderList(filterText = "") {
     if (isSummary) { item.classList.add('history-item-summary'); }
     const dateStr = new Date(e.createdAt).toLocaleDateString();
    
-    // [修改] 移除了 style="color:#2E7D32;"
     item.innerHTML = `
       <div class="history-item-header">
          <div>
@@ -870,11 +871,16 @@ function executeDeleteEntry() {
   const entry = entries.find(e => e.id === longPressTargetId);
   const dateKey = entry ? entry.dateKey : null;
 
-  // Cloud Delete
+  // 1. Fire Cloud Delete (Background)
   deleteEntryCloud(longPressTargetId);
 
+  // 2. Optimistic Local Update
   entries = entries.filter(e => e.id !== longPressTargetId);
   
+  // 3. Persist Local Changes Immediately [修正]
+  saveLocalEntries();
+
+  // 4. Update UI
   if (!calendarView.classList.contains("list-view-hidden")) {
       renderCalendar();
   } else {
@@ -937,7 +943,6 @@ function openDateModal(dateKey) {
         div.className = "history-item"; 
         if (e.type === 'summary') { div.classList.add('history-item-summary'); }
         
-        // [修改] 移除了 style="color:#2E7D32;"
         div.innerHTML = `
            <div class="history-item-date">${e.type === 'summary' ? 'AI Summary' : 'Entry'}</div>
            <div class="history-item-title">${e.chiefComplaint || '-'}</div>
