@@ -33,7 +33,7 @@ input, textarea {
 .header-content {
     display: flex;
     justify-content: space-between;
-    align-items: center; /* 修正對齊 */
+    align-items: center; 
 }
 .app-logo { 
     font-size: 14px; 
@@ -41,7 +41,7 @@ input, textarea {
     color: #B0BEC5; 
     letter-spacing: 0.05em; 
     text-transform: uppercase; 
-    white-space: nowrap; /* 防止標題換行 */
+    white-space: nowrap; 
 }
 .header-right {
     display: flex; 
@@ -49,7 +49,7 @@ input, textarea {
     gap: 10px;
 }
 .app-date { 
-    font-size: 13px; /* 稍微調小避免手機重疊 */
+    font-size: 13px; 
     color: #546E7A; 
     font-weight: 500; 
     transition: color 0.3s; 
@@ -91,32 +91,35 @@ input, textarea {
     margin: 10px 0 20px;
 }
 
-/* AI Banner */
+/* --- AI Banner (Japanese Minimalist / Sunflower Style) --- */
 .ai-banner {
-    background: linear-gradient(135deg, #673AB7 0%, #9575CD 100%);
+    background-color: #FFFCF2; /* Creamy White */
+    border: 1px dashed #FBC02D; /* Sunflower Yellow Dashed Border */
     border-radius: 16px;
-    padding: 16px;
+    padding: 12px 16px;
     margin-bottom: 20px;
-    color: white;
+    color: #5D4037; /* Earthy Brown Text */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 4px 12px rgba(103, 58, 183, 0.3);
+    box-shadow: 0 2px 8px rgba(251, 192, 45, 0.15); /* Soft yellow shadow */
     animation: fadeIn 0.5s ease;
 }
-.ai-banner.hidden { display: none; }
+.ai-banner.hidden { display: none !important; }
 
 .btn-ai {
-    background: white;
-    color: #673AB7;
+    background: #FBC02D; /* Sunflower Yellow */
+    color: #FFFFFF;
     border: none;
-    padding: 8px 12px;
-    border-radius: 8px;
-    font-weight: 700;
-    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 20px; /* Pill shape */
+    font-weight: 600;
+    font-size: 13px;
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(251, 192, 45, 0.3);
+    transition: transform 0.1s;
 }
+.btn-ai:active { transform: scale(0.95); }
 
 /* Cards */
 .card {
@@ -245,7 +248,8 @@ input, textarea {
 
 .calendar-cell-inner:active { background-color: #F5F5F5; }
 .calendar-cell-has-entry .calendar-cell-inner { background: #E3F2FD; color: #1565C0; font-weight: 700; }
-.calendar-cell-has-summary .calendar-cell-inner { background: #EDE7F6; color: #673AB7; font-weight: 700; box-shadow: 0 0 0 1px #673AB7 inset; }
+/* AI Summary Cell Style - Soft Yellow */
+.calendar-cell-has-summary .calendar-cell-inner { background: #FFF9C4; color: #F57F17; font-weight: 700; box-shadow: 0 0 0 1px #FBC02D inset; }
 .calendar-cell-empty .calendar-cell-inner { color: #CFD8DC; } 
 
 /* History List with Expansion */
@@ -262,14 +266,14 @@ input, textarea {
 }
 .history-item:active { background-color: #F0F0F0; }
 
-/* AI Summary Item Style */
+/* AI Summary Item Style - Washi / Sunflower Theme */
 .history-item-summary {
-    background-color: #EDE7F6; /* Light Purple */
-    border: 1px solid #D1C4E9;
+    background-color: #FFFCF2; /* Cream */
+    border: 1px dashed #FBC02D; /* Dashed Yellow */
 }
-.history-item-summary .history-item-date { color: #9575CD; }
-.history-item-summary .history-item-title { color: #512DA8; }
-.history-item-summary.expanded { background-color: #F3E5F5; }
+.history-item-summary .history-item-date { color: #F9A825; }
+.history-item-summary .history-item-title { color: #5D4037; }
+.history-item-summary.expanded { background-color: #FFFDE7; }
 
 .history-item-header {
     display: flex;
@@ -312,7 +316,7 @@ input, textarea {
 
 /* Modal & Action Sheet base styles */
 .modal, .action-sheet { position: fixed; inset: 0; z-index: 200; display: flex; justify-content: center; align-items: flex-end; }
-.hidden { display: none !important; } /* 修正：增加 !important 確保可以覆蓋所有樣式 */
+.hidden { display: none !important; } 
 .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(3px); cursor: pointer; }
 .modal-content, .action-sheet-content { position: relative; width: 100%; background: #FFF; border-radius: 24px 24px 0 0; padding: 24px; box-shadow: 0 -10px 40px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; pointer-events: auto; }
 
@@ -356,7 +360,7 @@ input, textarea, button { -webkit-appearance: none; appearance: none; }
 
 /* --- Sun Loading Animation (Minimalist) --- */
 #loadingOverlay {
-    display: flex; /* 預設顯示，會被 .hidden 覆蓋 */
+    display: flex; 
 }
 
 .sun-spinner {
@@ -373,9 +377,9 @@ input, textarea, button { -webkit-appearance: none; appearance: none; }
   transform: translate(-50%, -50%);
   width: 20px;
   height: 20px;
-  background-color: #FFB74D; /* Warm Orange/Yellow */
+  background-color: #FBC02D; /* Sunflower Core */
   border-radius: 50%;
-  box-shadow: 0 0 10px rgba(255, 183, 77, 0.4);
+  box-shadow: 0 0 10px rgba(251, 192, 45, 0.4);
 }
 
 /* Rays */
@@ -383,7 +387,7 @@ input, textarea, button { -webkit-appearance: none; appearance: none; }
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   border-radius: 50%;
-  border: 2px dashed #FFCC80; /* Lighter Orange for rays */
+  border: 2px dashed #FFF176; /* Soft rays */
   animation: sun-pulse 2s ease-in-out infinite;
 }
 

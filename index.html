@@ -32,8 +32,11 @@
         <h1 class="page-title">Daily Entry</h1>
 
         <div id="aiActionArea" class="ai-banner hidden">
-            <div id="aiActionText">It's Friday! Review your week?</div>
-            <button id="generateSummaryBtn" class="btn-ai">✨ Generate Summary</button>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 20px;">🌻</span>
+                <div id="aiActionText" style="font-weight: 500;">It's Friday!</div>
+            </div>
+            <button id="generateSummaryBtn" class="btn-ai">Generate</button>
         </div>
         
         <div class="card">
@@ -113,7 +116,7 @@
   <div id="actionSheet" class="action-sheet hidden">
     <div class="modal-backdrop" id="actionSheetBackdrop"></div>
     <div class="action-sheet-content">
-      <button id="regenerateAiBtn" class="action-sheet-btn hidden" style="color: #673AB7; background-color: #EDE7F6;">✨ Regenerate AI Summary</button>
+      <button id="regenerateAiBtn" class="action-sheet-btn hidden" style="color: #F57F17; background-color: #FFFDE7; border-color: #FBC02D;">🌻 Regenerate Summary</button>
       <button id="editEntryBtn" class="action-sheet-btn">Edit</button>
       <button id="deleteEntryBtn" class="action-sheet-btn action-sheet-btn-danger">Delete</button>
       <button id="cancelActionBtn" class="action-sheet-btn action-sheet-btn-cancel">Cancel</button>
@@ -140,48 +143,53 @@
           </div>
           <div style="padding-bottom: 20px; overflow-y: auto; max-height: 70vh;">
               
-              <div id="authSection">
-                  <h3 style="font-size: 14px; color: #37474F; margin-bottom: 12px;">Cloud Sync (Supabase)</h3>
+              <h3 style="font-size: 14px; color: #37474F; margin-bottom: 12px;">Cloud Sync (Supabase)</h3>
+              
+              <div id="loginForm">
+                  <label class="field-label">Supabase URL</label>
+                  <input type="text" id="sbUrlInput" class="input" placeholder="https://xyz.supabase.co">
                   
-                  <div id="loginForm">
-                      <label class="field-label">Supabase URL</label>
-                      <input type="text" id="sbUrlInput" class="input" placeholder="https://xyz.supabase.co">
-                      
-                      <label class="field-label">Supabase Anon Key</label>
-                      <input type="password" id="sbKeyInput" class="input" placeholder="eyJhbGci...">
+                  <label class="field-label">Supabase Anon Key</label>
+                  <input type="password" id="sbKeyInput" class="input" placeholder="eyJhbGci...">
 
-                      <hr style="border: 0; border-top: 1px solid #ECEFF1; margin: 16px 0;">
+                  <hr style="border: 0; border-top: 1px solid #ECEFF1; margin: 16px 0;">
 
-                      <label class="field-label">Email</label>
-                      <input type="email" id="emailInput" class="input" placeholder="you@example.com">
-                      
-                      <label class="field-label">Password</label>
-                      <input type="password" id="passwordInput" class="input" placeholder="********">
+                  <label class="field-label">Email</label>
+                  <input type="email" id="emailInput" class="input" placeholder="you@example.com">
+                  
+                  <label class="field-label">Password</label>
+                  <input type="password" id="passwordInput" class="input" placeholder="********">
 
-                      <div style="display: flex; gap: 10px; margin-top: 16px;">
-                          <button id="btnSignUp" class="btn-secondary">Sign Up</button>
-                          <button id="btnLogin" class="btn-primary" style="margin-top:0;">Login</button>
-                      </div>
+                  <div style="display: flex; gap: 10px; margin-top: 16px;">
+                      <button id="btnSignUp" class="btn-secondary">Sign Up</button>
+                      <button id="btnLogin" class="btn-primary" style="margin-top:0;">Login</button>
                   </div>
-
-                  <div id="userStatus" class="hidden" style="background: #E8F5E9; padding: 12px; border-radius: 12px; margin-top: 10px;">
-                      <div style="color: #2E7D32; font-weight: 600; font-size: 14px;">Logged in as:</div>
-                      <div id="userEmailDisplay" style="color: #1B5E20; font-size: 13px; margin-bottom: 8px;"></div>
-                      <button id="btnLogout" class="btn-secondary" style="margin-top:0; font-size:12px; padding: 8px;">Logout</button>
-                  </div>
-                  <div id="authMsg" style="margin-top:10px; font-size: 13px; text-align: center;"></div>
               </div>
+
+              <div id="userStatus" class="hidden" style="background: #FFFDE7; border: 1px solid #FFF59D; padding: 12px; border-radius: 12px; margin-top: 10px;">
+                  <div style="color: #F57F17; font-weight: 600; font-size: 14px;">Logged in as:</div>
+                  <div id="userEmailDisplay" style="color: #5D4037; font-size: 13px; margin-bottom: 8px;"></div>
+                  <button id="btnLogout" class="btn-secondary" style="margin-top:0; font-size:12px; padding: 8px;">Logout</button>
+              </div>
+              <div id="authMsg" style="margin-top:10px; font-size: 13px; text-align: center;"></div>
 
               <hr style="border: 0; border-top: 1px solid #ECEFF1; margin: 24px 0;">
 
               <h3 style="font-size: 14px; color: #37474F; margin-bottom: 12px;">AI Settings</h3>
-              <label class="field-label">Gemini API Key</label>
+              
+              <label class="field-label">Custom Focus / Instructions</label>
+              <div style="font-size: 12px; color: #78909C; margin-bottom: 8px;">
+                  Tell AI what to focus on (e.g., "Focus on future plans", "Be concise"). Leave empty for default.
+              </div>
+              <textarea id="customPromptInput" class="textarea" rows="2" placeholder="e.g. Please give me strict advice..."></textarea>
+              <label class="field-label" style="margin-top: 16px;">Gemini API Key</label>
               <div style="font-size: 12px; color: #78909C; margin-bottom: 8px;">
                   Stored locally. Required for AI summary.
               </div>
               <input type="password" id="apiKeyInput" class="input" placeholder="Paste Gemini Key here...">
-              <button id="saveApiKeyBtn" class="btn-primary" style="margin-top: 16px;">Save AI Key</button>
-              <div id="keyStatus" style="margin-top:10px; font-size: 13px; color: green; display: none;">Key saved!</div>
+              
+              <button id="saveApiKeyBtn" class="btn-primary" style="margin-top: 16px;">Save AI Settings</button>
+              <div id="keyStatus" style="margin-top:10px; font-size: 13px; color: green; display: none;">Settings saved!</div>
           </div>
       </div>
   </div>

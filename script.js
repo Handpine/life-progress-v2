@@ -1,7 +1,8 @@
-console.log("Script Started - Vibe Coding!"); 
+console.log("Script Started - Vibe Coding! (Fixed Model 2.5 + Prompt + Edit Summary)"); 
 
 const STORAGE_KEY = "lifeProgressEntries";
 const API_KEY_STORAGE = "geminiApiKey";
+const CUSTOM_PROMPT_STORAGE = "geminiCustomPrompt"; 
 const SB_URL_STORAGE = "sbUrl";
 const SB_KEY_STORAGE = "sbKey";
 
@@ -54,12 +55,13 @@ const confirmMessage = document.getElementById("confirmMessage");
 const confirmCancelBtn = document.getElementById("confirmCancelBtn");
 const confirmOkayBtn = document.getElementById("confirmOkayBtn");
 
-// Settings & Auth
+// Settings
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
 const settingsBackdrop = document.getElementById("settingsBackdrop");
 const settingsCloseBtn = document.getElementById("settingsCloseBtn");
 const apiKeyInput = document.getElementById("apiKeyInput");
+const customPromptInput = document.getElementById("customPromptInput"); 
 const saveApiKeyBtn = document.getElementById("saveApiKeyBtn");
 const keyStatus = document.getElementById("keyStatus");
 
@@ -89,14 +91,19 @@ async function init() {
   updateHeaderDate(); 
   setupEventListeners();
   
-  // Initialize Supabase if creds exist
+  // Load saved settings to UI immediately
+  const existingKey = localStorage.getItem(API_KEY_STORAGE);
+  if(existingKey && apiKeyInput) apiKeyInput.value = existingKey;
+  
+  const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE);
+  if(customPrompt && customPromptInput) customPromptInput.value = customPrompt;
+
   const sbUrl = localStorage.getItem(SB_URL_STORAGE);
   const sbKey = localStorage.getItem(SB_KEY_STORAGE);
   
   if (sbUrl && sbKey) {
       initSupabase(sbUrl, sbKey);
   } else {
-      // Fallback to local only
       entries = loadLocalEntries();
       renderInitialViews();
       checkAiTriggers();
@@ -143,7 +150,6 @@ function updateAuthUI(isLoggedIn) {
     }
 }
 
-// --- Sync Logic ---
 async function syncEntries() {
     if (!supabaseClient || !currentUser) return;
     showLoading("Syncing...");
@@ -215,10 +221,9 @@ async function deleteEntryCloud(id) {
         const { error } = await supabaseClient.from('entries').delete().eq('id', id);
         if (error) console.error("Delete error", error);
     }
-    // No need to saveLocalEntries here, executeDeleteEntry handles local state
 }
 
-// --- Auth Actions ---
+// ... Auth Actions ...
 async function handleLogin() {
     const url = sbUrlInput.value.trim();
     const key = sbKeyInput.value.trim();
@@ -289,7 +294,7 @@ function showAuthMsg(msg, isError) {
     authMsg.style.color = isError ? "red" : "green";
 }
 
-// --- Standard UI ---
+// ... Standard UI ...
 
 function renderInitialViews() {
     if (document.getElementById('tab-history') && !document.getElementById('tab-history').classList.contains('tab-page-hidden')) {
@@ -311,7 +316,6 @@ function hideLoading() {
     loadingOverlay.classList.add("hidden");
 }
 
-// ... Date Helpers ...
 function isFutureDate(dateObj) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -342,7 +346,6 @@ function updateHeaderDate() {
     }
 }
 
-// ... AI Logic ...
 function checkAiTriggers() {
     const today = new Date();
     const dayOfWeek = today.getDay(); 
@@ -358,11 +361,11 @@ function checkAiTriggers() {
     if (isLastDay) {
         showAi = true;
         type = 'monthly';
-        msg = "It's the end of the month! Generate Monthly Progress Summary?";
+        msg = "End of month! Monthly?";
     } else if (dayOfWeek === 5) {
         showAi = true;
         type = 'weekly';
-        msg = "It's Friday! Generate Weekly Progress Summary?";
+        msg = "It's Friday! Weekly?";
     }
 
     if (showAi) {
@@ -375,10 +378,14 @@ function checkAiTriggers() {
     }
 }
 
+// [重點修正] AI Summary 邏輯
 async function handleGenerateSummary(type, overwriteId = null) {
     const apiKey = localStorage.getItem(API_KEY_STORAGE);
+    const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE) || ""; 
+
     if (!apiKey) {
         alert("Please set your Gemini API Key in Settings first.");
+        settingsModal.classList.remove("hidden");
         return;
     }
 
@@ -404,21 +411,34 @@ async function handleGenerateSummary(type, overwriteId = null) {
         return;
     }
 
-    // [修改] 指定繁體中文
-    let promptText = `You are a helpful life coach assistant. Please summarize the following progress notes for my ${type} review in Traditional Chinese (繁體中文).
-    Identify key achievements, recurring problems, things I was grateful for, and future plans.
-    Format the output nicely with bullet points.
-    
-    Here are the entries:\n`;
+    // [Prompt 修正] 
+    // 1. 將使用者指令放在 System Role 之後的最前方
+    // 2. 使用大寫強調 "MUST"
+    let promptText = `ROLE: You are a helpful life coach assistant.
+TASK: Summarize the user's progress notes for a ${type} review.
+LANGUAGE: Traditional Chinese (繁體中文).
+
+[CRITICAL USER INSTRUCTION]
+The user has provided a specific requirement. You MUST follow this instruction above all else:
+"${customPrompt ? customPrompt : "Identify key achievements, recurring problems, gratitude, and future plans."}"
+
+[USER NOTES START]
+`;
 
     relevantEntries.forEach(e => {
         const dateStr = new Date(e.createdAt).toLocaleDateString();
-        promptText += `[${dateStr}] Title: ${e.chiefComplaint || 'N/A'}\n`;
+        promptText += `Date: ${dateStr}\n`;
+        promptText += `Title: ${e.chiefComplaint || 'N/A'}\n`;
         if (e.plan) promptText += `Plan: ${e.plan}\n`;
         if (e.gratitude) promptText += `Gratitude: ${e.gratitude}\n`;
         if (e.note) promptText += `Note: ${e.note}\n`;
         promptText += `----\n`;
     });
+    
+    promptText += `[USER NOTES END]\n`;
+    promptText += `Please generate the summary now, strictly following the [CRITICAL USER INSTRUCTION].`;
+
+    console.log("Sending Prompt:", promptText);
 
     showLoading("Thinking...");
     try {
@@ -432,7 +452,8 @@ async function handleGenerateSummary(type, overwriteId = null) {
             dateKey: toDateKey(new Date()),
             type: 'summary',
             summaryType: type,
-            chiefComplaint: `✨ AI ${type.charAt(0).toUpperCase() + type.slice(1)} Summary`,
+            // [UI 修正] 簡化標題，移除 'AI' 字眼
+            chiefComplaint: `🌻 ${type.charAt(0).toUpperCase() + type.slice(1)}`,
             plan: '',
             gratitude: '',
             note: resultText,
@@ -459,8 +480,36 @@ async function handleGenerateSummary(type, overwriteId = null) {
     }
 }
 
+// [模型修正] 直接鎖定 gemini-2.5-flash
 async function callGeminiAPI(key, prompt) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    // 你的帳號支援 2.5-flash，直接用這個，不用猜了
+    const model = 'gemini-2.5-flash';
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    
+    console.log(`Calling API with model: ${model}`);
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        // 如果 2.5 真的不行 (比如暫時掛掉)，再退回 2.0
+        if(response.status === 404 || response.status === 400) {
+             console.warn("2.5-flash failed, trying 2.0-flash...");
+             return callGeminiAPI_Fallback(key, prompt, 'gemini-2.0-flash');
+        }
+        throw new Error(err.error?.message || `API Failed (${response.status})`);
+    }
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+}
+
+// 備用方案
+async function callGeminiAPI_Fallback(key, prompt, model) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -468,13 +517,12 @@ async function callGeminiAPI(key, prompt) {
     });
     if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.error?.message || "Unknown API error");
+        throw new Error(err.error?.message || `Fallback API Failed (${response.status})`);
     }
     const data = await response.json();
     return data.candidates[0].content.parts[0].text;
 }
 
-// ... UI Helpers ...
 function showConfirmModal(message, isDangerous, callback) {
     confirmMessage.textContent = message;
     confirmCallback = callback;
@@ -532,7 +580,7 @@ function setupEventListeners() {
   cancelActionBtn.addEventListener("click", closeActionSheet);
   actionSheetBackdrop.addEventListener("click", closeActionSheet);
   deleteEntryBtn.addEventListener("click", handleDeleteEntryClick);
-  editEntryBtn.addEventListener("click", handleEditEntry);
+  editEntryBtn.addEventListener("click", handleEditEntry); // [修正] 確保 Edit 按鈕有綁定事件
 
   confirmBackdrop.addEventListener("click", closeConfirmModal);
   confirmCancelBtn.addEventListener("click", closeConfirmModal);
@@ -546,6 +594,10 @@ function setupEventListeners() {
       const existingKey = localStorage.getItem(API_KEY_STORAGE);
       if(existingKey) apiKeyInput.value = existingKey;
       
+      // [修正] 每次打開設定時，從 LocalStorage 讀取 Prompt
+      const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE); 
+      if(customPrompt) customPromptInput.value = customPrompt;
+
       const existingUrl = localStorage.getItem(SB_URL_STORAGE);
       const existingSbKey = localStorage.getItem(SB_KEY_STORAGE);
       if(existingUrl) sbUrlInput.value = existingUrl;
@@ -556,16 +608,22 @@ function setupEventListeners() {
   });
   settingsCloseBtn.addEventListener("click", () => settingsModal.classList.add("hidden"));
   settingsBackdrop.addEventListener("click", () => settingsModal.classList.add("hidden"));
+  
+  // Save Settings
   saveApiKeyBtn.addEventListener("click", () => {
       const key = apiKeyInput.value.trim();
+      const prompt = customPromptInput.value.trim(); 
+
       if(key) {
           localStorage.setItem(API_KEY_STORAGE, key);
-          keyStatus.style.display = 'block';
-          setTimeout(() => { keyStatus.style.display = 'none'; }, 1000);
       }
+      // [修正] 確保 Prompt 被存入 LocalStorage
+      localStorage.setItem(CUSTOM_PROMPT_STORAGE, prompt); 
+
+      keyStatus.style.display = 'block';
+      setTimeout(() => { keyStatus.style.display = 'none'; }, 1000);
   });
 
-  // Auth Buttons
   btnLogin.addEventListener("click", handleLogin);
   btnSignUp.addEventListener("click", handleSignUp);
   btnLogout.addEventListener("click", handleLogout);
@@ -658,7 +716,6 @@ async function handleSave() {
       now.setHours(12, 0, 0); 
   }
 
-  // Create or Update
   if (editingEntryId) {
     const index = entries.findIndex(e => e.id === editingEntryId);
     if (index !== -1) {
@@ -668,7 +725,7 @@ async function handleSave() {
       entries[index].note = note;
       entries[index].updatedAt = new Date().getTime();
       
-      saveLocalEntries(); // [修正] 本地即時存檔
+      saveLocalEntries(); 
       await uploadEntry(entries[index]);
     }
     editingEntryId = null;
@@ -690,7 +747,7 @@ async function handleSave() {
     };
     entries.unshift(newEntry);
     
-    saveLocalEntries(); // [修正] 本地即時存檔
+    saveLocalEntries(); 
     await uploadEntry(newEntry);
    
     targetDate = null;
@@ -793,7 +850,6 @@ function renderList(filterText = "") {
     if (isSummary) { item.classList.add('history-item-summary'); }
     const dateStr = new Date(e.createdAt).toLocaleDateString();
    
-    // [修改] 移除了 style="color:#2E7D32;"
     item.innerHTML = `
       <div class="history-item-header">
          <div>
@@ -812,39 +868,6 @@ function renderList(filterText = "") {
     addLongPressEvent(item, e.id, 'item');
     historyList.appendChild(item);
   });
-}
-
-// [修正] 關鍵修復：這裡加上了變數傳遞，解決了 ID 遺失的問題
-function handleDeleteEntryClick() {
-    if (!longPressTargetId) return;
-    const idToDelete = longPressTargetId; // 1. 先抓取 ID
-    closeActionSheet(); // 2. 這會把 longPressTargetId 變 null
-    // 3. 把 idToDelete 傳進去
-    showConfirmModal("Delete this entry?", true, () => executeDeleteEntry(idToDelete));
-}
-
-function executeDeleteEntry(id) { // [修正] 接收 ID 參數
-  const entry = entries.find(e => e.id === id); // 使用傳進來的 ID
-  const dateKey = entry ? entry.dateKey : null;
-
-  // 1. Fire Cloud Delete (Background)
-  deleteEntryCloud(id);
-
-  // 2. Optimistic Local Update
-  entries = entries.filter(e => e.id !== id);
-  
-  // 3. Persist Local Changes Immediately [修正]
-  saveLocalEntries();
-
-  // 4. Update UI
-  if (!calendarView.classList.contains("list-view-hidden")) {
-      renderCalendar();
-  } else {
-      renderList(searchInput.value.toLowerCase());
-  }
-  if (!entryModal.classList.contains("hidden") && dateKey) {
-      openDateModal(dateKey); 
-  }
 }
 
 function addLongPressEvent(el, idOrDate, type) {
@@ -880,7 +903,7 @@ function openActionSheet(id) {
   const entry = entries.find(e => e.id === id);
   if (entry && entry.type === 'summary') {
       regenerateAiBtn.classList.remove('hidden');
-      editEntryBtn.classList.add('hidden'); 
+      editEntryBtn.classList.remove('hidden'); // [修正] 現在 Summary 也可以編輯了
   } else {
       regenerateAiBtn.classList.add('hidden');
       editEntryBtn.classList.remove('hidden');
@@ -894,14 +917,40 @@ function closeActionSheet() {
   longPressTargetId = null;
 }
 
+function handleDeleteEntryClick() {
+    if (!longPressTargetId) return;
+    const idToDelete = longPressTargetId; 
+    closeActionSheet(); 
+    showConfirmModal("Delete this entry?", true, () => executeDeleteEntry(idToDelete));
+}
+
+function executeDeleteEntry(id) { 
+  const entry = entries.find(e => e.id === id); 
+  const dateKey = entry ? entry.dateKey : null;
+
+  deleteEntryCloud(id);
+
+  entries = entries.filter(e => e.id !== id);
+  
+  saveLocalEntries();
+
+  if (!calendarView.classList.contains("list-view-hidden")) {
+      renderCalendar();
+  } else {
+      renderList(searchInput.value.toLowerCase());
+  }
+  if (!entryModal.classList.contains("hidden") && dateKey) {
+      openDateModal(dateKey); 
+  }
+}
+
 function handleEditEntry() {
   if (!longPressTargetId) return;
   const entry = entries.find(e => e.id === longPressTargetId);
   if (entry) {
-      if(entry.type === 'summary') {
-          alert("To update a summary, please use 'Regenerate' or delete it.");
-          return;
-      }
+      // [修正] 移除原本禁止編輯 Summary 的限制
+      // if(entry.type === 'summary') { ... } 
+      
     if(ccInput) ccInput.value = entry.chiefComplaint || "";
     if(planInput) planInput.value = entry.plan || "";
     if(gratitudeInput) gratitudeInput.value = entry.gratitude || ""; 
@@ -984,12 +1033,10 @@ function sortEntriesDescending(arr) {
   return arr.slice().sort((a, b) => b.createdAt - a.createdAt);
 }
 
-// Fallback ID generator if crypto.randomUUID() fails (e.g. non-secure context)
 function generateUUID() {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
         return crypto.randomUUID();
     }
-    // Fallback timestamp + random
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
         var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
