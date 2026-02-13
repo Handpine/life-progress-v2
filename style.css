@@ -6,7 +6,6 @@ html, body {
     padding: 0; 
     width: 100%;
     height: 100%; 
-    /* [關鍵修正] 將網頁「釘」在畫面上，禁止瀏覽器為了鍵盤移動整個畫布 */
     position: fixed; 
     overflow: hidden;
     overscroll-behavior: none;
@@ -28,20 +27,17 @@ input, textarea {
 .app-root {
   display: flex;
   flex-direction: column;
-  /* 填滿被鎖定的 body */
   width: 100%;
   height: 100%;
-  /* 移除原本的 padding-bottom，改在 app-main 處理 */
 }
 
 /* Header */
 .app-header {
-    /* 這裡不需要 position: fixed，因為 body 已經被固定了，header 自然會停在頂部 */
     padding: 16px 20px 0;
-    padding-top: max(16px, env(safe-area-inset-top)); /* 確保瀏海不會遮住 */
-    background-color: #FAF9F6; /* 確保不透明 */
+    padding-top: max(16px, env(safe-area-inset-top)); 
+    background-color: #FAF9F6; 
     z-index: 10;
-    flex-shrink: 0; /* 禁止 header 被壓縮 */
+    flex-shrink: 0; 
 }
 
 .header-content {
@@ -84,12 +80,10 @@ input, textarea {
 /* Main Content Area */
 .app-main {
   flex: 1;
-  overflow-y: auto; /* 只有這塊區域可以捲動 */
+  overflow-y: auto; 
   padding: 20px;
   position: relative;
-  /* 讓捲動更滑順 */
   -webkit-overflow-scrolling: touch;
-  /* [關鍵] 增加底部空間，避免被藍芽鍵盤的選字列或 Bottom Tabs 遮住 */
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
@@ -173,7 +167,6 @@ input, textarea {
   color: #37474F;
   outline: none;
   transition: all 0.2s ease;
-  /* 移除 scroll-margin-top，因為現在 body 已經被固定了 */
 }
 
 .input:focus, .textarea:focus {
@@ -263,11 +256,26 @@ input, textarea {
 
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
 .calendar-cell { padding-top: 100%; position: relative; border-radius: 50%; font-size: 13px; color: #37474F; }
-.calendar-cell-inner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 50%; }
+.calendar-cell-inner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; border-radius: 50%; transition: all 0.2s ease; }
 
 .calendar-cell-inner:active { background-color: #F5F5F5; }
+
+/* Normal Entry: Blue */
 .calendar-cell-has-entry .calendar-cell-inner { background: #E3F2FD; color: #1565C0; font-weight: 700; }
+
+/* Summary Only: Yellow */
 .calendar-cell-has-summary .calendar-cell-inner { background: #FFF9C4; color: #F57F17; font-weight: 700; box-shadow: 0 0 0 1px #FBC02D inset; }
+
+/* Mixed (Entry + Summary): Blue Core with Golden Halo */
+.calendar-cell-mixed .calendar-cell-inner { 
+    background: #E3F2FD; 
+    color: #1565C0; 
+    font-weight: 700; 
+    /* 這裡做出金黃外圈的效果 */
+    box-shadow: 0 0 0 2px #FBC02D; 
+    border: 2px solid #FFF; /* Optional: 加一點白邊區隔會更好看 */
+}
+
 .calendar-cell-empty .calendar-cell-inner { color: #CFD8DC; } 
 
 /* History List */

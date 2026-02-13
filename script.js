@@ -1,9 +1,9 @@
-console.log("Script Started - Vibe Coding! (Dynamic Model Settings)"); 
+console.log("Script Started - Vibe Coding! (Keyboard Fix + Mixed Calendar)"); 
 
 const STORAGE_KEY = "lifeProgressEntries";
 const API_KEY_STORAGE = "geminiApiKey";
 const CUSTOM_PROMPT_STORAGE = "geminiCustomPrompt"; 
-const MODEL_NAME_STORAGE = "geminiModelName"; // 用來存模型名稱的 Key
+const MODEL_NAME_STORAGE = "geminiModelName"; 
 const SB_URL_STORAGE = "sbUrl";
 const SB_KEY_STORAGE = "sbKey";
 
@@ -63,7 +63,7 @@ const settingsBackdrop = document.getElementById("settingsBackdrop");
 const settingsCloseBtn = document.getElementById("settingsCloseBtn");
 const apiKeyInput = document.getElementById("apiKeyInput");
 const customPromptInput = document.getElementById("customPromptInput");
-const modelNameInput = document.getElementById("modelNameInput"); // 新增：模型輸入框
+const modelNameInput = document.getElementById("modelNameInput"); 
 const saveApiKeyBtn = document.getElementById("saveApiKeyBtn");
 const keyStatus = document.getElementById("keyStatus");
 
@@ -93,14 +93,13 @@ async function init() {
   updateHeaderDate(); 
   setupEventListeners();
   
-  // 初始化時讀取設定
+  // Load saved settings
   const existingKey = localStorage.getItem(API_KEY_STORAGE);
   if(existingKey && apiKeyInput) apiKeyInput.value = existingKey;
   
   const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE);
   if(customPrompt && customPromptInput) customPromptInput.value = customPrompt;
 
-  // 讀取模型名稱，若無則使用預設值
   const savedModel = localStorage.getItem(MODEL_NAME_STORAGE);
   if(savedModel && modelNameInput) {
       modelNameInput.value = savedModel;
@@ -388,11 +387,10 @@ function checkAiTriggers() {
     }
 }
 
-// [重點修正] AI Summary 邏輯
 async function handleGenerateSummary(type, overwriteId = null) {
     const apiKey = localStorage.getItem(API_KEY_STORAGE);
     const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE) || ""; 
-    const modelName = localStorage.getItem(MODEL_NAME_STORAGE) || "gemini-2.5-flash"; // 從設定讀取模型名稱
+    const modelName = localStorage.getItem(MODEL_NAME_STORAGE) || "gemini-2.5-flash"; 
 
     if (!apiKey) {
         alert("Please set your Gemini API Key in Settings first.");
@@ -450,7 +448,6 @@ The user has provided a specific requirement. You MUST follow this instruction a
 
     showLoading("Thinking...");
     try {
-        // 將模型名稱傳入 API 呼叫函式
         const resultText = await callGeminiAPI(apiKey, promptText, modelName);
         
         const newId = overwriteId || generateUUID(); 
@@ -461,7 +458,6 @@ The user has provided a specific requirement. You MUST follow this instruction a
             dateKey: toDateKey(new Date()),
             type: 'summary',
             summaryType: type,
-            // [UI 修正] 簡化標題，移除 'AI' 字眼
             chiefComplaint: `🌻 ${type.charAt(0).toUpperCase() + type.slice(1)}`,
             plan: '',
             gratitude: '',
@@ -489,7 +485,6 @@ The user has provided a specific requirement. You MUST follow this instruction a
     }
 }
 
-// [模型修正] 使用參數傳入的模型名稱
 async function callGeminiAPI(key, prompt, model) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     
@@ -575,16 +570,15 @@ function setupEventListeners() {
       closeConfirmModal();
   });
 
-  // Settings: Open
   settingsBtn.addEventListener("click", () => {
       const existingKey = localStorage.getItem(API_KEY_STORAGE);
-      if(existingKey && apiKeyInput) apiKeyInput.value = existingKey;
+      if(existingKey) apiKeyInput.value = existingKey;
       
       const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE); 
-      if(customPrompt && customPromptInput) customPromptInput.value = customPrompt;
+      if(customPrompt) customPromptInput.value = customPrompt;
 
       const savedModel = localStorage.getItem(MODEL_NAME_STORAGE);
-      if(savedModel && modelNameInput) modelNameInput.value = savedModel;
+      if(savedModel) modelNameInput.value = savedModel;
 
       const existingUrl = localStorage.getItem(SB_URL_STORAGE);
       const existingSbKey = localStorage.getItem(SB_KEY_STORAGE);
@@ -597,7 +591,6 @@ function setupEventListeners() {
   settingsCloseBtn.addEventListener("click", () => settingsModal.classList.add("hidden"));
   settingsBackdrop.addEventListener("click", () => settingsModal.classList.add("hidden"));
   
-  // Save Settings
   saveApiKeyBtn.addEventListener("click", () => {
       const key = apiKeyInput.value.trim();
       const prompt = customPromptInput.value.trim(); 
@@ -627,6 +620,19 @@ function setupEventListeners() {
               handleGenerateSummary(entry.summaryType, entry.id);
           }
       }
+  });
+
+  // [關鍵修正] 針對 iPad/平板藍芽鍵盤的優化
+  // 防止 PageUp/PageDown/Home/End 鍵觸發瀏覽器捲動
+  const inputs = document.querySelectorAll('input, textarea');
+  inputs.forEach(el => {
+      el.addEventListener('keydown', (e) => {
+          // 這些按鍵代碼對應：PageUp, PageDown, End, Home
+          const blockKeys = ['PageUp', 'PageDown', 'Home', 'End'];
+          if (blockKeys.includes(e.key)) {
+              e.preventDefault(); // 禁止瀏覽器預設行為 (防止亂跳)
+          }
+      });
   });
 
   if (planInput) enableAutoBullets(planInput);
@@ -791,7 +797,10 @@ function renderCalendar() {
     const cell = document.createElement("div");
     cell.className = "calendar-cell";
    
-    if (hasEntry) {
+    // [重點] 修正樣式邏輯：優先判斷「混合狀態」，再來是單一狀態
+    if (hasEntry && hasSummary) {
+        cell.classList.add("calendar-cell-mixed"); // 金黃包藍
+    } else if (hasEntry) {
         cell.classList.add("calendar-cell-has-entry");
     } else if (hasSummary) {
         cell.classList.add("calendar-cell-has-summary"); 
@@ -917,7 +926,7 @@ function openActionSheet(id) {
   const entry = entries.find(e => e.id === id);
   if (entry && entry.type === 'summary') {
       regenerateAiBtn.classList.remove('hidden');
-      editEntryBtn.classList.remove('hidden'); // Enable edit for summary
+      editEntryBtn.classList.remove('hidden'); 
   } else {
       regenerateAiBtn.classList.add('hidden');
       editEntryBtn.classList.remove('hidden');
