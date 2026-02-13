@@ -1,21 +1,22 @@
 /* Reset & Base */
 *, *::before, *::after { box-sizing: border-box; }
+
 html, body { 
     margin: 0; 
     padding: 0; 
+    width: 100%;
     height: 100%; 
-    /* [新增] 禁止彈性捲動效果，減少畫面跳動感 */
-    overscroll-behavior-y: none; 
-}
-
-body {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  background-color: #FAF9F6;
-  color: #333333;
-  -webkit-font-smoothing: antialiased;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
+    /* [關鍵修正] 將網頁「釘」在畫面上，禁止瀏覽器為了鍵盤移動整個畫布 */
+    position: fixed; 
+    overflow: hidden;
+    overscroll-behavior: none;
+    background-color: #FAF9F6;
+    color: #333333;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 input, textarea {
@@ -27,20 +28,22 @@ input, textarea {
 .app-root {
   display: flex;
   flex-direction: column;
-  /* [修改] 使用 dvh (動態視窗高度) 來更準確對應手機/平板螢幕，fallback 為 100vh */
-  height: 100vh;
-  height: 100dvh; 
-  padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  /* 填滿被鎖定的 body */
+  width: 100%;
+  height: 100%;
+  /* 移除原本的 padding-bottom，改在 app-main 處理 */
 }
 
 /* Header */
 .app-header {
+    /* 這裡不需要 position: fixed，因為 body 已經被固定了，header 自然會停在頂部 */
     padding: 16px 20px 0;
-    margin-top: env(safe-area-inset-top);
-    /* [新增] 確保 Header 永遠在最上層，不會被內容蓋住 */
-    position: relative;
+    padding-top: max(16px, env(safe-area-inset-top)); /* 確保瀏海不會遮住 */
+    background-color: #FAF9F6; /* 確保不透明 */
     z-index: 10;
+    flex-shrink: 0; /* 禁止 header 被壓縮 */
 }
+
 .header-content {
     display: flex;
     justify-content: space-between;
@@ -81,11 +84,13 @@ input, textarea {
 /* Main Content Area */
 .app-main {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* 只有這塊區域可以捲動 */
   padding: 20px;
   position: relative;
-  /* [新增] 讓捲動更滑順 */
+  /* 讓捲動更滑順 */
   -webkit-overflow-scrolling: touch;
+  /* [關鍵] 增加底部空間，避免被藍芽鍵盤的選字列或 Bottom Tabs 遮住 */
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 /* Tab Logic */
@@ -104,28 +109,28 @@ input, textarea {
     margin: 10px 0 20px;
 }
 
-/* --- AI Banner (Japanese Minimalist / Sunflower Style) --- */
+/* --- AI Banner --- */
 .ai-banner {
-    background-color: #FFFCF2; /* Creamy White */
-    border: 1px dashed #FBC02D; /* Sunflower Yellow Dashed Border */
+    background-color: #FFFCF2; 
+    border: 1px dashed #FBC02D; 
     border-radius: 16px;
     padding: 12px 16px;
     margin-bottom: 20px;
-    color: #5D4037; /* Earthy Brown Text */
+    color: #5D4037; 
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 8px rgba(251, 192, 45, 0.15); /* Soft yellow shadow */
+    box-shadow: 0 2px 8px rgba(251, 192, 45, 0.15); 
     animation: fadeIn 0.5s ease;
 }
 .ai-banner.hidden { display: none !important; }
 
 .btn-ai {
-    background: #FBC02D; /* Sunflower Yellow */
+    background: #FBC02D; 
     color: #FFFFFF;
     border: none;
     padding: 6px 14px;
-    border-radius: 20px; /* Pill shape */
+    border-radius: 20px; 
     font-weight: 600;
     font-size: 13px;
     cursor: pointer;
@@ -168,11 +173,7 @@ input, textarea {
   color: #37474F;
   outline: none;
   transition: all 0.2s ease;
-  
-  /* [關鍵修正] 防止瀏覽器自動捲動到頂部 */
-  /* 當瀏覽器試圖把輸入框捲入視野時，它會被迫停在距離頂部 120px 的地方 */
-  /* 這樣就不會遮住標題，也不會跳得太突兀 */
-  scroll-margin-top: 120px; 
+  /* 移除 scroll-margin-top，因為現在 body 已經被固定了 */
 }
 
 .input:focus, .textarea:focus {
@@ -266,11 +267,10 @@ input, textarea {
 
 .calendar-cell-inner:active { background-color: #F5F5F5; }
 .calendar-cell-has-entry .calendar-cell-inner { background: #E3F2FD; color: #1565C0; font-weight: 700; }
-/* AI Summary Cell Style - Soft Yellow */
 .calendar-cell-has-summary .calendar-cell-inner { background: #FFF9C4; color: #F57F17; font-weight: 700; box-shadow: 0 0 0 1px #FBC02D inset; }
 .calendar-cell-empty .calendar-cell-inner { color: #CFD8DC; } 
 
-/* History List with Expansion */
+/* History List */
 .list-view-hidden { display: none; }
 
 .history-item { 
@@ -284,10 +284,9 @@ input, textarea {
 }
 .history-item:active { background-color: #F0F0F0; }
 
-/* AI Summary Item Style - Washi / Sunflower Theme */
 .history-item-summary {
-    background-color: #FFFCF2; /* Cream */
-    border: 1px dashed #FBC02D; /* Dashed Yellow */
+    background-color: #FFFCF2; 
+    border: 1px dashed #FBC02D; 
 }
 .history-item-summary .history-item-date { color: #F9A825; }
 .history-item-summary .history-item-title { color: #5D4037; }
@@ -303,7 +302,6 @@ input, textarea {
 .history-item-title { font-size: 16px; font-weight: 600; color: #37474F; margin-top: 4px; }
 .history-item-expand-icon { font-size: 12px; color: #B0BEC5; transition: transform 0.3s; }
 
-/* Hidden Details */
 .history-item-details { 
     display: none; 
     margin-top: 12px; 
@@ -314,9 +312,8 @@ input, textarea {
     line-height: 1.5;
 }
 
-/* List Text Formatting for Bullets */
 .list-text {
-    white-space: pre-wrap; /* Preserve newlines */
+    white-space: pre-wrap; 
     margin-top: 4px;
     padding-left: 8px;
     color: #455A64;
@@ -332,90 +329,31 @@ input, textarea {
     to { opacity: 1; transform: translateY(0); }
 }
 
-/* Modal & Action Sheet base styles */
+/* Modals */
 .modal, .action-sheet { position: fixed; inset: 0; z-index: 200; display: flex; justify-content: center; align-items: flex-end; }
 .hidden { display: none !important; } 
 .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(3px); cursor: pointer; }
 .modal-content, .action-sheet-content { position: relative; width: 100%; background: #FFF; border-radius: 24px 24px 0 0; padding: 24px; box-shadow: 0 -10px 40px rgba(0,0,0,0.1); max-height: 80vh; overflow-y: auto; pointer-events: auto; }
 
-/* Modal Header */
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .modal-title { font-size: 18px; font-weight: 700; color: #37474F; }
-
 .no-data-msg { text-align: center; color: #90A4AE; padding: 20px; font-style: italic; }
 
-/* Action Sheet Buttons */
 .action-sheet-btn { width: 100%; padding: 16px; margin-bottom: 10px; border-radius: 14px; border: 1px solid #ECEFF1; background: #FFF; font-size: 16px; font-weight: 600; color: #37474F; }
 .action-sheet-btn-danger { color: #E53935; background: #FFEBEE; border: none; }
 .action-sheet-btn-cancel { background: #F5F5F5; color: #78909C; border: none; }
 
-/* Custom Confirmation Modal Specific Styles */
-.confirm-content {
-    text-align: center;
-    padding-top: 32px; 
-}
+.confirm-content { text-align: center; padding-top: 32px; }
+.confirm-message { font-size: 18px; font-weight: 600; color: #37474F; margin-bottom: 24px; line-height: 1.4; }
+.confirm-actions { display: flex; gap: 12px; }
+.confirm-actions .action-sheet-btn { margin-bottom: 0; flex: 1; }
 
-.confirm-message {
-    font-size: 18px;
-    font-weight: 600;
-    color: #37474F;
-    margin-bottom: 24px;
-    line-height: 1.4;
-}
-
-.confirm-actions {
-    display: flex;
-    gap: 12px; 
-}
-
-.confirm-actions .action-sheet-btn {
-    margin-bottom: 0; 
-    flex: 1; 
-}
-
-/* iOS Fixes */
 input, textarea, button { -webkit-appearance: none; appearance: none; }
 
-/* --- Sun Loading Animation (Minimalist) --- */
-#loadingOverlay {
-    display: flex; 
-}
+#loadingOverlay { display: flex; }
+.sun-spinner { position: relative; width: 48px; height: 48px; animation: sun-spin 8s linear infinite; }
+.sun-core { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; background-color: #FBC02D; border-radius: 50%; box-shadow: 0 0 10px rgba(251, 192, 45, 0.4); }
+.sun-rays { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 50%; border: 2px dashed #FFF176; animation: sun-pulse 2s ease-in-out infinite; }
 
-.sun-spinner {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  animation: sun-spin 8s linear infinite;
-}
-
-/* Core of the sun */
-.sun-core {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 20px;
-  height: 20px;
-  background-color: #FBC02D; /* Sunflower Core */
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(251, 192, 45, 0.4);
-}
-
-/* Rays */
-.sun-rays {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  border-radius: 50%;
-  border: 2px dashed #FFF176; /* Soft rays */
-  animation: sun-pulse 2s ease-in-out infinite;
-}
-
-@keyframes sun-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes sun-pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  50% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1); opacity: 0.8; }
-}
+@keyframes sun-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes sun-pulse { 0% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0.8; } }
