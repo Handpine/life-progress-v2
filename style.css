@@ -267,13 +267,12 @@ input, textarea {
 .calendar-cell-has-summary .calendar-cell-inner { background: #FFF9C4; color: #F57F17; font-weight: 700; box-shadow: 0 0 0 1px #FBC02D inset; }
 
 /* Mixed (Entry + Summary): Blue Core with Golden Halo */
+/* 藍色核心，配上 2px 的實心金黃色邊框，像一個保護罩 */
 .calendar-cell-mixed .calendar-cell-inner { 
     background: #E3F2FD; 
     color: #1565C0; 
     font-weight: 700; 
-    /* 這裡做出金黃外圈的效果 */
-    box-shadow: 0 0 0 2px #FBC02D; 
-    border: 2px solid #FFF; /* Optional: 加一點白邊區隔會更好看 */
+    border: 2px solid #FBC02D; 
 }
 
 .calendar-cell-empty .calendar-cell-inner { color: #CFD8DC; } 

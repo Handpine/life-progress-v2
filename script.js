@@ -1,4 +1,4 @@
-console.log("Script Started - Vibe Coding! (Keyboard Fix + Mixed Calendar)"); 
+console.log("Script Started - Vibe Coding! (Keyboard Block + Golden Halo)"); 
 
 const STORAGE_KEY = "lifeProgressEntries";
 const API_KEY_STORAGE = "geminiApiKey";
@@ -622,17 +622,30 @@ function setupEventListeners() {
       }
   });
 
-  // [關鍵修正] 針對 iPad/平板藍芽鍵盤的優化
-  // 防止 PageUp/PageDown/Home/End 鍵觸發瀏覽器捲動
+  // [關鍵修正] 針對 iPad/平板藍芽鍵盤的核彈級優化
+  // 強制攔截所有可能導致頁面跳動的鍵盤事件
   const inputs = document.querySelectorAll('input, textarea');
   inputs.forEach(el => {
       el.addEventListener('keydown', (e) => {
-          // 這些按鍵代碼對應：PageUp, PageDown, End, Home
-          const blockKeys = ['PageUp', 'PageDown', 'Home', 'End'];
-          if (blockKeys.includes(e.key)) {
-              e.preventDefault(); // 禁止瀏覽器預設行為 (防止亂跳)
+          // 1. 攔截標準導航鍵 (許多藍芽鍵盤將 Shift+Arrow 對應到這些鍵)
+          const scrollKeys = ['PageUp', 'PageDown', 'Home', 'End'];
+          
+          // 2. 攔截 Shift + Arrow (這是觸發文字選取並導致亂跳的主因)
+          const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+          
+          // 條件：如果是導航鍵，或者 按著 Shift 的方向鍵 -> 全部擋掉
+          // 這會犧牲鍵盤選字功能，但能保證畫面絕對不亂跳
+          if (scrollKeys.includes(e.key) || (e.shiftKey && arrowKeys.includes(e.key))) {
+              e.preventDefault(); 
           }
       });
+  });
+  
+  // 額外保險：監聽全域捲動，如果有任何偏移，強制歸零
+  window.addEventListener('scroll', () => {
+      if(window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+      }
   });
 
   if (planInput) enableAutoBullets(planInput);
@@ -797,9 +810,9 @@ function renderCalendar() {
     const cell = document.createElement("div");
     cell.className = "calendar-cell";
    
-    // [重點] 修正樣式邏輯：優先判斷「混合狀態」，再來是單一狀態
+    // [邏輯修正] 優先判斷混合狀態
     if (hasEntry && hasSummary) {
-        cell.classList.add("calendar-cell-mixed"); // 金黃包藍
+        cell.classList.add("calendar-cell-mixed"); 
     } else if (hasEntry) {
         cell.classList.add("calendar-cell-has-entry");
     } else if (hasSummary) {
