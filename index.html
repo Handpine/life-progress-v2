@@ -177,11 +177,18 @@
 
               <h3 style="font-size: 14px; color: #37474F; margin-bottom: 12px;">AI Settings</h3>
               
-              <label class="field-label">Custom Focus / Instructions</label>
+              <label class="field-label">AI Model Name</label>
+              <div style="font-size: 12px; color: #78909C; margin-bottom: 8px;">
+                  Google updates models often. Enter the model ID below.<br>
+                  <a href="https://ai.google.dev/models" target="_blank" style="color: #FBC02D; text-decoration: none;">📋 View list of available models</a>
+              </div>
+              <input type="text" id="modelNameInput" class="input" placeholder="e.g. gemini-2.5-flash" value="gemini-2.5-flash">
+              <label class="field-label" style="margin-top: 16px;">Custom Focus / Instructions</label>
               <div style="font-size: 12px; color: #78909C; margin-bottom: 8px;">
                   Tell AI what to focus on (e.g., "Focus on future plans", "Be concise"). Leave empty for default.
               </div>
               <textarea id="customPromptInput" class="textarea" rows="2" placeholder="e.g. Please give me strict advice..."></textarea>
+
               <label class="field-label" style="margin-top: 16px;">Gemini API Key</label>
               <div style="font-size: 12px; color: #78909C; margin-bottom: 8px;">
                   Stored locally. Required for AI summary.

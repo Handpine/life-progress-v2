@@ -1,8 +1,9 @@
-console.log("Script Started - Vibe Coding! (Fixed Model 2.5 + Prompt + Edit Summary)"); 
+console.log("Script Started - Vibe Coding! (Dynamic Model Settings)"); 
 
 const STORAGE_KEY = "lifeProgressEntries";
 const API_KEY_STORAGE = "geminiApiKey";
 const CUSTOM_PROMPT_STORAGE = "geminiCustomPrompt"; 
+const MODEL_NAME_STORAGE = "geminiModelName"; // 用來存模型名稱的 Key
 const SB_URL_STORAGE = "sbUrl";
 const SB_KEY_STORAGE = "sbKey";
 
@@ -61,7 +62,8 @@ const settingsModal = document.getElementById("settingsModal");
 const settingsBackdrop = document.getElementById("settingsBackdrop");
 const settingsCloseBtn = document.getElementById("settingsCloseBtn");
 const apiKeyInput = document.getElementById("apiKeyInput");
-const customPromptInput = document.getElementById("customPromptInput"); 
+const customPromptInput = document.getElementById("customPromptInput");
+const modelNameInput = document.getElementById("modelNameInput"); // 新增：模型輸入框
 const saveApiKeyBtn = document.getElementById("saveApiKeyBtn");
 const keyStatus = document.getElementById("keyStatus");
 
@@ -91,12 +93,20 @@ async function init() {
   updateHeaderDate(); 
   setupEventListeners();
   
-  // Load saved settings to UI immediately
+  // 初始化時讀取設定
   const existingKey = localStorage.getItem(API_KEY_STORAGE);
   if(existingKey && apiKeyInput) apiKeyInput.value = existingKey;
   
   const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE);
   if(customPrompt && customPromptInput) customPromptInput.value = customPrompt;
+
+  // 讀取模型名稱，若無則使用預設值
+  const savedModel = localStorage.getItem(MODEL_NAME_STORAGE);
+  if(savedModel && modelNameInput) {
+      modelNameInput.value = savedModel;
+  } else if (modelNameInput) {
+      modelNameInput.value = "gemini-2.5-flash"; // Default
+  }
 
   const sbUrl = localStorage.getItem(SB_URL_STORAGE);
   const sbKey = localStorage.getItem(SB_KEY_STORAGE);
@@ -382,6 +392,7 @@ function checkAiTriggers() {
 async function handleGenerateSummary(type, overwriteId = null) {
     const apiKey = localStorage.getItem(API_KEY_STORAGE);
     const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE) || ""; 
+    const modelName = localStorage.getItem(MODEL_NAME_STORAGE) || "gemini-2.5-flash"; // 從設定讀取模型名稱
 
     if (!apiKey) {
         alert("Please set your Gemini API Key in Settings first.");
@@ -411,9 +422,6 @@ async function handleGenerateSummary(type, overwriteId = null) {
         return;
     }
 
-    // [Prompt 修正] 
-    // 1. 將使用者指令放在 System Role 之後的最前方
-    // 2. 使用大寫強調 "MUST"
     let promptText = `ROLE: You are a helpful life coach assistant.
 TASK: Summarize the user's progress notes for a ${type} review.
 LANGUAGE: Traditional Chinese (繁體中文).
@@ -442,7 +450,8 @@ The user has provided a specific requirement. You MUST follow this instruction a
 
     showLoading("Thinking...");
     try {
-        const resultText = await callGeminiAPI(apiKey, promptText);
+        // 將模型名稱傳入 API 呼叫函式
+        const resultText = await callGeminiAPI(apiKey, promptText, modelName);
         
         const newId = overwriteId || generateUUID(); 
 
@@ -480,10 +489,8 @@ The user has provided a specific requirement. You MUST follow this instruction a
     }
 }
 
-// [模型修正] 直接鎖定 gemini-2.5-flash
-async function callGeminiAPI(key, prompt) {
-    // 你的帳號支援 2.5-flash，直接用這個，不用猜了
-    const model = 'gemini-2.5-flash';
+// [模型修正] 使用參數傳入的模型名稱
+async function callGeminiAPI(key, prompt, model) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     
     console.log(`Calling API with model: ${model}`);
@@ -496,28 +503,7 @@ async function callGeminiAPI(key, prompt) {
 
     if (!response.ok) {
         const err = await response.json();
-        // 如果 2.5 真的不行 (比如暫時掛掉)，再退回 2.0
-        if(response.status === 404 || response.status === 400) {
-             console.warn("2.5-flash failed, trying 2.0-flash...");
-             return callGeminiAPI_Fallback(key, prompt, 'gemini-2.0-flash');
-        }
         throw new Error(err.error?.message || `API Failed (${response.status})`);
-    }
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
-}
-
-// 備用方案
-async function callGeminiAPI_Fallback(key, prompt, model) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-    });
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error?.message || `Fallback API Failed (${response.status})`);
     }
     const data = await response.json();
     return data.candidates[0].content.parts[0].text;
@@ -580,7 +566,7 @@ function setupEventListeners() {
   cancelActionBtn.addEventListener("click", closeActionSheet);
   actionSheetBackdrop.addEventListener("click", closeActionSheet);
   deleteEntryBtn.addEventListener("click", handleDeleteEntryClick);
-  editEntryBtn.addEventListener("click", handleEditEntry); // [修正] 確保 Edit 按鈕有綁定事件
+  editEntryBtn.addEventListener("click", handleEditEntry); 
 
   confirmBackdrop.addEventListener("click", closeConfirmModal);
   confirmCancelBtn.addEventListener("click", closeConfirmModal);
@@ -589,14 +575,16 @@ function setupEventListeners() {
       closeConfirmModal();
   });
 
-  // Settings
+  // Settings: Open
   settingsBtn.addEventListener("click", () => {
       const existingKey = localStorage.getItem(API_KEY_STORAGE);
-      if(existingKey) apiKeyInput.value = existingKey;
+      if(existingKey && apiKeyInput) apiKeyInput.value = existingKey;
       
-      // [修正] 每次打開設定時，從 LocalStorage 讀取 Prompt
       const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE); 
-      if(customPrompt) customPromptInput.value = customPrompt;
+      if(customPrompt && customPromptInput) customPromptInput.value = customPrompt;
+
+      const savedModel = localStorage.getItem(MODEL_NAME_STORAGE);
+      if(savedModel && modelNameInput) modelNameInput.value = savedModel;
 
       const existingUrl = localStorage.getItem(SB_URL_STORAGE);
       const existingSbKey = localStorage.getItem(SB_KEY_STORAGE);
@@ -613,12 +601,11 @@ function setupEventListeners() {
   saveApiKeyBtn.addEventListener("click", () => {
       const key = apiKeyInput.value.trim();
       const prompt = customPromptInput.value.trim(); 
+      const model = modelNameInput.value.trim();
 
-      if(key) {
-          localStorage.setItem(API_KEY_STORAGE, key);
-      }
-      // [修正] 確保 Prompt 被存入 LocalStorage
+      if(key) localStorage.setItem(API_KEY_STORAGE, key);
       localStorage.setItem(CUSTOM_PROMPT_STORAGE, prompt); 
+      if(model) localStorage.setItem(MODEL_NAME_STORAGE, model);
 
       keyStatus.style.display = 'block';
       setTimeout(() => { keyStatus.style.display = 'none'; }, 1000);
@@ -870,6 +857,33 @@ function renderList(filterText = "") {
   });
 }
 
+function handleDeleteEntryClick() {
+    if (!longPressTargetId) return;
+    const idToDelete = longPressTargetId; 
+    closeActionSheet(); 
+    showConfirmModal("Delete this entry?", true, () => executeDeleteEntry(idToDelete));
+}
+
+function executeDeleteEntry(id) { 
+  const entry = entries.find(e => e.id === id); 
+  const dateKey = entry ? entry.dateKey : null;
+
+  deleteEntryCloud(id);
+
+  entries = entries.filter(e => e.id !== id);
+  
+  saveLocalEntries();
+
+  if (!calendarView.classList.contains("list-view-hidden")) {
+      renderCalendar();
+  } else {
+      renderList(searchInput.value.toLowerCase());
+  }
+  if (!entryModal.classList.contains("hidden") && dateKey) {
+      openDateModal(dateKey); 
+  }
+}
+
 function addLongPressEvent(el, idOrDate, type) {
   el.addEventListener("touchstart", (e) => {
     longPressTimer = setTimeout(() => handleLongPress(idOrDate, type), 600);
@@ -903,7 +917,7 @@ function openActionSheet(id) {
   const entry = entries.find(e => e.id === id);
   if (entry && entry.type === 'summary') {
       regenerateAiBtn.classList.remove('hidden');
-      editEntryBtn.classList.remove('hidden'); // [修正] 現在 Summary 也可以編輯了
+      editEntryBtn.classList.remove('hidden'); // Enable edit for summary
   } else {
       regenerateAiBtn.classList.add('hidden');
       editEntryBtn.classList.remove('hidden');
@@ -917,40 +931,10 @@ function closeActionSheet() {
   longPressTargetId = null;
 }
 
-function handleDeleteEntryClick() {
-    if (!longPressTargetId) return;
-    const idToDelete = longPressTargetId; 
-    closeActionSheet(); 
-    showConfirmModal("Delete this entry?", true, () => executeDeleteEntry(idToDelete));
-}
-
-function executeDeleteEntry(id) { 
-  const entry = entries.find(e => e.id === id); 
-  const dateKey = entry ? entry.dateKey : null;
-
-  deleteEntryCloud(id);
-
-  entries = entries.filter(e => e.id !== id);
-  
-  saveLocalEntries();
-
-  if (!calendarView.classList.contains("list-view-hidden")) {
-      renderCalendar();
-  } else {
-      renderList(searchInput.value.toLowerCase());
-  }
-  if (!entryModal.classList.contains("hidden") && dateKey) {
-      openDateModal(dateKey); 
-  }
-}
-
 function handleEditEntry() {
   if (!longPressTargetId) return;
   const entry = entries.find(e => e.id === longPressTargetId);
   if (entry) {
-      // [修正] 移除原本禁止編輯 Summary 的限制
-      // if(entry.type === 'summary') { ... } 
-      
     if(ccInput) ccInput.value = entry.chiefComplaint || "";
     if(planInput) planInput.value = entry.plan || "";
     if(gratitudeInput) gratitudeInput.value = entry.gratitude || ""; 
