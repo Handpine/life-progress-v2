@@ -1,14 +1,19 @@
 /* Reset & Base */
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body { 
+html {
+    height: 100%;
+    /* [修正] 移除 fixed，改用這些屬性來防止橡皮筋效果，但允許鍵盤推擠 */
+    overscroll-behavior: none; 
+    background-color: #FAF9F6;
+}
+
+body { 
     margin: 0; 
     padding: 0; 
     width: 100%;
-    height: 100%; 
-    position: fixed; 
-    overflow: hidden;
-    overscroll-behavior: none;
+    /* [修正] 使用 dvh (動態高度) 讓 iOS 鍵盤彈出時能自動調整 */
+    min-height: 100dvh; 
     background-color: #FAF9F6;
     color: #333333;
     font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -16,6 +21,7 @@ html, body {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
+    /* [修正] 移除 position: fixed 和 overflow: hidden */
 }
 
 input, textarea {
@@ -27,8 +33,8 @@ input, textarea {
 .app-root {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  height: 100%;
+  /* [修正] 確保 root 佔滿視窗 */
+  min-height: 100dvh; 
 }
 
 /* Header */
@@ -38,6 +44,9 @@ input, textarea {
     background-color: #FAF9F6; 
     z-index: 10;
     flex-shrink: 0; 
+    /* [修正] 加上 sticky 確保滑動時 Header 還在 */
+    position: sticky;
+    top: 0;
 }
 
 .header-content {
@@ -80,10 +89,9 @@ input, textarea {
 /* Main Content Area */
 .app-main {
   flex: 1;
-  overflow-y: auto; 
+  /* [修正] 移除 overflow-y: auto，讓 body 負責滾動 */
   padding: 20px;
   position: relative;
-  -webkit-overflow-scrolling: touch;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
@@ -267,7 +275,6 @@ input, textarea {
 .calendar-cell-has-summary .calendar-cell-inner { background: #FFF9C4; color: #F57F17; font-weight: 700; box-shadow: 0 0 0 1px #FBC02D inset; }
 
 /* Mixed (Entry + Summary): Blue Core with Golden Halo */
-/* 藍色核心，配上 2px 的實心金黃色邊框，像一個保護罩 */
 .calendar-cell-mixed .calendar-cell-inner { 
     background: #E3F2FD; 
     color: #1565C0; 
