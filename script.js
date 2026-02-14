@@ -1,4 +1,4 @@
-console.log("Script Started - Vibe Coding! (Keyboard Block + Golden Halo)"); 
+console.log("Script Started - Vibe Coding! (Mobile Native Scroll Restored)"); 
 
 const STORAGE_KEY = "lifeProgressEntries";
 const API_KEY_STORAGE = "geminiApiKey";
@@ -622,32 +622,6 @@ function setupEventListeners() {
       }
   });
 
-  // [關鍵修正] 針對 iPad/平板藍芽鍵盤的核彈級優化
-  // 強制攔截所有可能導致頁面跳動的鍵盤事件
-  const inputs = document.querySelectorAll('input, textarea');
-  inputs.forEach(el => {
-      el.addEventListener('keydown', (e) => {
-          // 1. 攔截標準導航鍵 (許多藍芽鍵盤將 Shift+Arrow 對應到這些鍵)
-          const scrollKeys = ['PageUp', 'PageDown', 'Home', 'End'];
-          
-          // 2. 攔截 Shift + Arrow (這是觸發文字選取並導致亂跳的主因)
-          const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
-          
-          // 條件：如果是導航鍵，或者 按著 Shift 的方向鍵 -> 全部擋掉
-          // 這會犧牲鍵盤選字功能，但能保證畫面絕對不亂跳
-          if (scrollKeys.includes(e.key) || (e.shiftKey && arrowKeys.includes(e.key))) {
-              e.preventDefault(); 
-          }
-      });
-  });
-  
-  // 額外保險：監聽全域捲動，如果有任何偏移，強制歸零
-  window.addEventListener('scroll', () => {
-      if(window.scrollY !== 0 || window.scrollX !== 0) {
-          window.scrollTo(0, 0);
-      }
-  });
-
   if (planInput) enableAutoBullets(planInput);
   if (gratitudeInput) enableAutoBullets(gratitudeInput);
 }
@@ -810,7 +784,6 @@ function renderCalendar() {
     const cell = document.createElement("div");
     cell.className = "calendar-cell";
    
-    // [邏輯修正] 優先判斷混合狀態
     if (hasEntry && hasSummary) {
         cell.classList.add("calendar-cell-mixed"); 
     } else if (hasEntry) {
