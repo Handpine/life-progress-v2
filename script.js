@@ -1,4 +1,4 @@
-console.log("Script Started - Vibe Coding! (Mobile Native Scroll Restored)"); 
+console.log("Script Started - Vibe Coding! (Keyboard Fix: Delayed Center/Nearest)"); 
 
 const STORAGE_KEY = "lifeProgressEntries";
 const API_KEY_STORAGE = "geminiApiKey";
@@ -92,6 +92,7 @@ async function init() {
   console.log("Init running...");
   updateHeaderDate(); 
   setupEventListeners();
+  setupKeyboardHelpers(); // [新增] 啟動鍵盤優化小幫手
   
   // Load saved settings
   const existingKey = localStorage.getItem(API_KEY_STORAGE);
@@ -117,6 +118,32 @@ async function init() {
       renderInitialViews();
       checkAiTriggers();
   }
+}
+
+// [新增] 鍵盤優化核心邏輯
+function setupKeyboardHelpers() {
+    // 監聽全域的 Focus 事件 (當你點擊任何輸入框時)
+    document.addEventListener('focusin', (e) => {
+        const target = e.target;
+        // 只針對輸入框處理
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+            
+            // 判斷是否為手機 (寬度小於 768px 通常是手機)
+            const isMobile = window.innerWidth < 768;
+            
+            // 延遲 350ms，等待手機軟鍵盤完全彈出，視窗高度穩定後再捲動
+            setTimeout(() => {
+                // 如果是手機 -> 用 'center' (強制置中，確保不會被鍵盤蓋住)
+                // 如果是平板/電腦 -> 用 'nearest' (如果已經看得到，就不要亂動畫面)
+                const scrollMode = isMobile ? 'center' : 'nearest';
+                
+                target.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: scrollMode 
+                });
+            }, 350); 
+        }
+    });
 }
 
 function initSupabase(url, key) {
