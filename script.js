@@ -1,6 +1,6 @@
-console.log("Script Started - Vibe Coding! (Offline + Time Travel + Retro Summary)"); 
+console.log("Script Started - Vibe Coding! (Custom Date Picker + Perfect 2-Way Sync)"); 
 
-// [新增] 註冊離線 Service Worker
+// 註冊離線 Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(err => console.log('SW setup failed: ', err));
@@ -8,6 +8,7 @@ if ('serviceWorker' in navigator) {
 }
 
 const STORAGE_KEY = "lifeProgressEntries";
+const PENDING_SYNC_STORAGE = "lifeProgressPendingSync"; // [新增] 離線佇列
 const API_KEY_STORAGE = "geminiApiKey";
 const CUSTOM_PROMPT_STORAGE = "geminiCustomPrompt"; 
 const MODEL_NAME_STORAGE = "geminiModelName"; 
@@ -25,7 +26,6 @@ let currentUser = null;
 
 // DOM Elements
 const dateEl = document.getElementById("currentDate");
-const headerDatePicker = document.getElementById("headerDatePicker"); // [新增] 頂部隱藏日期選單
 const saveBtn = document.getElementById("saveBtn");
 const ccInput = document.getElementById("ccInput");
 const planInput = document.getElementById("planInput");
@@ -57,23 +57,34 @@ const deleteEntryBtn = document.getElementById("deleteEntryBtn");
 const cancelActionBtn = document.getElementById("cancelActionBtn");
 const regenerateAiBtn = document.getElementById("regenerateAiBtn");
 
-// Confirm Modal
 const confirmModal = document.getElementById("confirmModal");
 const confirmBackdrop = document.getElementById("confirmBackdrop");
 const confirmMessage = document.getElementById("confirmMessage");
 const confirmCancelBtn = document.getElementById("confirmCancelBtn");
 const confirmOkayBtn = document.getElementById("confirmOkayBtn");
 
-// Manual Summary Modal [新增]
 const manualSummaryBtn = document.getElementById("manualSummaryBtn");
 const summaryModal = document.getElementById("summaryModal");
 const summaryBackdrop = document.getElementById("summaryBackdrop");
 const summaryCloseBtn = document.getElementById("summaryCloseBtn");
 const summaryTypeSelect = document.getElementById("summaryTypeSelect");
-const summaryDateInput = document.getElementById("summaryDateInput");
+const summaryDateDisplay = document.getElementById("summaryDateDisplay"); // [修正]
 const execGenerateSummaryBtn = document.getElementById("execGenerateSummaryBtn");
 
-// Settings
+// Custom Date Modal [新增]
+const customDateModal = document.getElementById("customDateModal");
+const customDateBackdrop = document.getElementById("customDateBackdrop");
+const customDateCloseBtn = document.getElementById("customDateCloseBtn");
+const cdmTodayBtn = document.getElementById("cdmTodayBtn");
+const cdmPrevMonthBtn = document.getElementById("cdmPrevMonthBtn");
+const cdmNextMonthBtn = document.getElementById("cdmNextMonthBtn");
+const cdmMonthLabel = document.getElementById("cdmMonthLabel");
+const cdmCalendarGrid = document.getElementById("cdmCalendarGrid");
+
+let customDateMode = 'header'; // 判斷目前是 header 選日期還是 summary 選日期
+let cdmCurrentMonth = new Date();
+let selectedSummaryDate = null; // Summary 專用的暫存日期
+
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
 const settingsBackdrop = document.getElementById("settingsBackdrop");
@@ -127,7 +138,6 @@ async function init() {
   const sbUrl = localStorage.getItem(SB_URL_STORAGE);
   const sbKey = localStorage.getItem(SB_KEY_STORAGE);
   
-  // [修正] 離線狀態直接跳過 Supabase 初始化，秒開 Local
   if (!navigator.onLine) {
       console.log("Offline mode detected. Loading local only.");
       entries = loadLocalEntries();
@@ -144,6 +154,75 @@ async function init() {
       checkAiTriggers();
   }
 }
+
+// ==========================================
+// [新增] 離線雙向同步佇列 (Offline Queue System)
+// ==========================================
+function getPendingSync() {
+    try {
+        const raw = localStorage.getItem(PENDING_SYNC_STORAGE);
+        return raw ? JSON.parse(raw) : { upserts: {}, deletes: [] };
+    } catch {
+        return { upserts: {}, deletes: [] };
+    }
+}
+
+function savePendingSync(data) {
+    localStorage.setItem(PENDING_SYNC_STORAGE, JSON.stringify(data));
+}
+
+function addPendingUpsert(entry) {
+    const sync = getPendingSync();
+    sync.upserts[entry.id] = entry; 
+    sync.deletes = sync.deletes.filter(id => id !== entry.id); 
+    savePendingSync(sync);
+    console.log("📝 Saved to offline queue:", entry.id);
+}
+
+function addPendingDelete(id) {
+    const sync = getPendingSync();
+    sync.deletes.push(id);
+    delete sync.upserts[id];
+    savePendingSync(sync);
+    console.log("🗑️ Saved to offline delete queue:", id);
+}
+
+async function processPendingSync() {
+    if (!supabaseClient || !currentUser || !navigator.onLine) return;
+    const sync = getPendingSync();
+    let hasPending = sync.deletes.length > 0 || Object.keys(sync.upserts).length > 0;
+    
+    if (!hasPending) return;
+
+    console.log("☁️ Found offline changes! Uploading to Supabase first...");
+    showLoading("Syncing offline notes...");
+    
+    for (const id of sync.deletes) {
+        await supabaseClient.from('entries').delete().eq('id', id);
+    }
+    
+    for (const key in sync.upserts) {
+        const entry = sync.upserts[key];
+        const dbPayload = {
+            id: entry.id,
+            user_id: currentUser.id,
+            date_key: entry.dateKey,
+            created_at: new Date(entry.createdAt).toISOString(),
+            type: entry.type || 'entry', 
+            summary_type: entry.summaryType,
+            chief_complaint: entry.chiefComplaint,
+            plan: entry.plan,
+            gratitude: entry.gratitude,
+            note: entry.note,
+            updated_at: entry.updatedAt
+        };
+        await supabaseClient.from('entries').upsert(dbPayload, { onConflict: 'id' });
+    }
+    
+    savePendingSync({ upserts: {}, deletes: [] });
+    hideLoading();
+}
+// ==========================================
 
 function setupModalKeyboardFix() {
     const scrollContainer = document.querySelector('#settingsModal .modal-content > div:nth-child(2)');
@@ -165,7 +244,7 @@ function setupModalKeyboardFix() {
 
 function initSupabase(url, key) {
     if (!window.supabase) {
-        console.error("Supabase SDK not loaded (likely offline)");
+        console.error("Supabase SDK not loaded");
         entries = loadLocalEntries();
         renderInitialViews();
         return;
@@ -207,8 +286,11 @@ function updateAuthUI(isLoggedIn) {
 
 async function syncEntries() {
     if (!supabaseClient || !currentUser || !navigator.onLine) return;
-    showLoading("Syncing...");
     
+    // [重點] 永遠先還債！確保離線資料先上傳，才拉取新資料
+    await processPendingSync();
+
+    showLoading("Syncing...");
     try {
         const { data, error } = await supabaseClient
             .from('entries')
@@ -242,7 +324,8 @@ async function syncEntries() {
 
 async function uploadEntry(entry) {
     if (!supabaseClient || !currentUser || !navigator.onLine) {
-        saveLocalEntries(); // 離線直接存 Local
+        addPendingUpsert(entry);
+        saveLocalEntries(); 
         return;
     }
     
@@ -260,18 +343,24 @@ async function uploadEntry(entry) {
         updated_at: entry.updatedAt
     };
 
-    const { error } = await supabaseClient
-        .from('entries')
-        .upsert(dbPayload, { onConflict: 'id' });
+    const { error } = await supabaseClient.from('entries').upsert(dbPayload, { onConflict: 'id' });
 
-    if (error) console.error("Upload error", error);
+    if (error) {
+        console.error("Upload error, queueing for later.", error);
+        addPendingUpsert(entry); 
+    }
     saveLocalEntries();
 }
 
 async function deleteEntryCloud(id) {
-    if (supabaseClient && currentUser && navigator.onLine) {
-        const { error } = await supabaseClient.from('entries').delete().eq('id', id);
-        if (error) console.error("Delete error", error);
+    if (!supabaseClient || !currentUser || !navigator.onLine) {
+        addPendingDelete(id);
+        return;
+    }
+    const { error } = await supabaseClient.from('entries').delete().eq('id', id);
+    if (error) {
+        console.error("Delete error, queueing.", error);
+        addPendingDelete(id);
     }
 }
 
@@ -400,6 +489,90 @@ function updateHeaderDate() {
     }
 }
 
+// ==========================================
+// [新增] 專屬日曆選擇器邏輯 (Custom Date Picker)
+// ==========================================
+function openCustomDatePicker(mode) {
+    customDateMode = mode;
+    let initialDate = new Date();
+    
+    if (mode === 'header' && targetDate) {
+        initialDate = new Date(targetDate);
+    } else if (mode === 'summary' && selectedSummaryDate) {
+        initialDate = new Date(selectedSummaryDate);
+    }
+
+    cdmCurrentMonth = new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
+    renderCustomDatePicker(initialDate);
+    customDateModal.classList.remove('hidden');
+}
+
+function renderCustomDatePicker(highlightDate) {
+    cdmCalendarGrid.innerHTML = "";
+    const y = cdmCurrentMonth.getFullYear();
+    const m = cdmCurrentMonth.getMonth();
+    cdmMonthLabel.textContent = cdmCurrentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    const firstDay = new Date(y, m, 1).getDay();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    
+    const highlightStr = highlightDate ? toDateKey(highlightDate) : null;
+    const todayStr = toDateKey(new Date());
+
+    for (let i = 0; i < firstDay; i++) {
+        const cell = document.createElement("div");
+        cdmCalendarGrid.appendChild(cell);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dateObj = new Date(y, m, d);
+       
+        const cell = document.createElement("div");
+        cell.className = "calendar-cell"; // 借用原本的 css 框架
+        
+        let innerHTML = `<div class="calendar-cell-inner">${d}</div>`;
+        cell.innerHTML = innerHTML;
+        const inner = cell.querySelector('.calendar-cell-inner');
+        
+        if (isFutureDate(dateObj)) {
+            inner.style.color = "#CFD8DC";
+            inner.style.cursor = "not-allowed";
+        } else {
+            if (dateStr === highlightStr) {
+                inner.classList.add('cdm-selected');
+            } else if (dateStr === todayStr) {
+                inner.classList.add('cdm-today-mark');
+            }
+            inner.addEventListener("click", () => handleCustomDateSelect(dateStr));
+        }
+        cdmCalendarGrid.appendChild(cell);
+    }
+}
+
+function handleCustomDateSelect(dateStr) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const pickedDate = new Date(y, m - 1, d);
+
+    if (customDateMode === 'header') {
+        if (dateStr === toDateKey(new Date())) {
+            targetDate = null; // 完美的「回到今天」邏輯
+        } else {
+            targetDate = pickedDate;
+        }
+        updateHeaderDate();
+        saveBtn.textContent = (targetDate && isPastDate(targetDate)) ? "Save Past Entry" : "Save";
+        customDateModal.classList.add('hidden');
+        closeModal();
+        switchTab("tab-write");
+    } else if (customDateMode === 'summary') {
+        selectedSummaryDate = pickedDate;
+        summaryDateDisplay.textContent = dateStr;
+        customDateModal.classList.add('hidden');
+    }
+}
+// ==========================================
+
 function checkAiTriggers() {
     const today = new Date();
     const dayOfWeek = today.getDay(); 
@@ -432,7 +605,6 @@ function checkAiTriggers() {
     }
 }
 
-// [修正] 支援手動指定結算日的 Summary
 async function handleGenerateSummary(type, overwriteId = null, customEndDateStr = null) {
     if (!navigator.onLine) {
         alert("AI features require an internet connection.");
@@ -449,7 +621,6 @@ async function handleGenerateSummary(type, overwriteId = null, customEndDateStr 
         return;
     }
 
-    // 決定計算的「基準日」(預設是今天，若手動選擇則是選擇的那一天)
     const baseDate = customEndDateStr ? new Date(customEndDateStr) : new Date();
     baseDate.setHours(23, 59, 59, 999);
     
@@ -502,10 +673,9 @@ The user has provided a specific requirement. You MUST follow this instruction a
         
         const newId = overwriteId || generateUUID(); 
         
-        // 確保生成的 Summary 日期是該計算週期的「最後一天」
         const summaryEntry = {
             id: newId,
-            createdAt: baseDate.getTime(), // 綁定在該結算日
+            createdAt: baseDate.getTime(),
             dateKey: toDateKey(baseDate),
             type: 'summary',
             summaryType: type,
@@ -578,32 +748,19 @@ function closeConfirmModal() {
 }
 
 function setupEventListeners() {
+  // [新增] 監聽網路連線恢復，自動觸發同步還債
+  window.addEventListener('online', async () => {
+      console.log("🌐 Network came back online!");
+      if (currentUser && supabaseClient) {
+          await syncEntries(); 
+      }
+  });
+
   saveBtn.addEventListener("click", handleSave);
 
-  // [新增] 隱藏式日期選擇器：監聽改變
-  headerDatePicker.addEventListener("change", (e) => {
-      if(!e.target.value) return;
-      const [y, m, d] = e.target.value.split("-").map(Number);
-      const pickedDate = new Date(y, m - 1, d);
-      
-      if (isFutureDate(pickedDate)) {
-          alert("Cannot time-travel to the future.");
-          e.target.value = '';
-          return;
-      }
-      
-      targetDate = pickedDate;
-      updateHeaderDate();
-      
-      if (isPastDate(targetDate)) {
-          saveBtn.textContent = "Save Past Entry";
-      } else {
-          saveBtn.textContent = "Save";
-      }
-      
-      // 自動切換到 Write 頁面方便寫入
-      closeModal();
-      switchTab("tab-write");
+  // [修正] 點擊標題呼叫客製化日曆
+  dateEl.addEventListener("click", () => {
+      openCustomDatePicker('header');
   });
 
   bottomTabButtons.forEach((btn) => {
@@ -645,18 +802,36 @@ function setupEventListeners() {
       closeConfirmModal();
   });
 
-  // [新增] Manual Summary 彈窗控制
+  // Manual Summary Controls
   manualSummaryBtn.addEventListener("click", () => {
-      summaryDateInput.value = toDateKey(new Date()); // 預設今天
+      selectedSummaryDate = new Date();
+      summaryDateDisplay.textContent = "Today"; 
       summaryModal.classList.remove("hidden");
   });
+  summaryDateDisplay.addEventListener("click", () => openCustomDatePicker('summary'));
   summaryCloseBtn.addEventListener("click", () => summaryModal.classList.add("hidden"));
   summaryBackdrop.addEventListener("click", () => summaryModal.classList.add("hidden"));
   
   execGenerateSummaryBtn.addEventListener("click", () => {
       const type = summaryTypeSelect.value;
-      const dateStr = summaryDateInput.value;
+      const dateStr = selectedSummaryDate ? toDateKey(selectedSummaryDate) : toDateKey(new Date());
       handleGenerateSummary(type, null, dateStr);
+  });
+
+  // Custom Date Modal Controls
+  customDateCloseBtn.addEventListener("click", () => customDateModal.classList.add("hidden"));
+  customDateBackdrop.addEventListener("click", () => customDateModal.classList.add("hidden"));
+  cdmTodayBtn.addEventListener("click", () => handleCustomDateSelect(toDateKey(new Date())));
+  cdmPrevMonthBtn.addEventListener("click", () => {
+      cdmCurrentMonth.setMonth(cdmCurrentMonth.getMonth() - 1);
+      renderCustomDatePicker();
+  });
+  cdmNextMonthBtn.addEventListener("click", () => {
+      const newMonth = new Date(cdmCurrentMonth.getFullYear(), cdmCurrentMonth.getMonth() + 1, 1);
+      if(!isFutureDate(newMonth)) {
+          cdmCurrentMonth = newMonth;
+          renderCustomDatePicker();
+      }
   });
 
   settingsBtn.addEventListener("click", () => {
@@ -706,7 +881,7 @@ function setupEventListeners() {
           const entry = entries.find(e => e.id === longPressTargetId);
           if (entry && entry.type === 'summary') {
               closeActionSheet();
-              handleGenerateSummary(entry.summaryType, entry.id); // 對舊的重新整理
+              handleGenerateSummary(entry.summaryType, entry.id, entry.dateKey); 
           }
       }
   });
@@ -782,7 +957,6 @@ async function handleSave() {
   if (!targetDate) {
       now.setHours(new Date().getHours(), new Date().getMinutes());
   } else {
-      // 確保跨日寫的筆記能落在選定的日期
       now.setHours(12, 0, 0); 
   }
 
@@ -794,7 +968,6 @@ async function handleSave() {
       entries[index].gratitude = gratitude;
       entries[index].note = note;
       
-      // [修正] 如果在編輯時改了時間，連同 dateKey 和 createdAt 一起更新
       entries[index].dateKey = toDateKey(now);
       entries[index].createdAt = now.getTime(); 
       entries[index].updatedAt = new Date().getTime();
