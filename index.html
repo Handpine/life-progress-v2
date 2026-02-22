@@ -20,7 +20,10 @@
       <div class="header-content">
         <div class="app-logo">Life Progress</div>
         <div class="header-right">
-            <div id="currentDate" class="app-date">Loading...</div>
+            <div style="position: relative; display: flex; align-items: center;">
+                <div id="currentDate" class="app-date" style="cursor:pointer;" title="Tap to change date">Loading...</div>
+                <input type="date" id="headerDatePicker" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
+            </div>
             <button id="settingsBtn" class="icon-btn-small">⚙️</button>
         </div>
       </div>
@@ -68,6 +71,7 @@
                 <button id="calendarViewBtn" class="toggle-btn toggle-btn-active">Calendar</button>
                 <button id="listViewBtn" class="toggle-btn">List</button>
             </div>
+            <button id="manualSummaryBtn" class="btn-ghost" style="border-color: #FBC02D; color: #F57F17; background: #FFFCF2; padding: 6px 14px;">✨ Summary</button>
         </div>
 
         <div id="calendarView" style="margin-top: 20px;">
@@ -99,6 +103,35 @@
       </button>
     </nav>
 
+  </div>
+
+  <div id="summaryModal" class="modal hidden">
+      <div class="modal-backdrop" id="summaryBackdrop"></div>
+      <div class="modal-content">
+          <div class="modal-header">
+            <div class="modal-title">Retroactive AI Summary</div>
+            <button id="summaryCloseBtn" class="btn-ghost">Close</button>
+          </div>
+          <div style="padding-bottom: 20px;">
+              <div style="font-size: 13px; color: #78909C; margin-bottom: 16px;">
+                  Missed a summary? Generate it here for any past period.
+              </div>
+              
+              <label class="field-label">Summary Type</label>
+              <select id="summaryTypeSelect" class="input" style="appearance: auto; height: 48px;">
+                  <option value="weekly">Weekly Review</option>
+                  <option value="monthly">Monthly Review</option>
+              </select>
+
+              <label class="field-label" style="margin-top: 16px;">End Date of Period</label>
+              <div style="font-size: 12px; color: #B0BEC5; margin-bottom: 8px;">
+                  AI will analyze the 7 days (or full month) ending on this date.
+              </div>
+              <input type="date" id="summaryDateInput" class="input">
+
+              <button id="execGenerateSummaryBtn" class="btn-primary" style="margin-top: 24px; background: #FFFDE7; color: #F57F17; border: 1px solid #FBC02D; box-shadow: none;">✨ Generate Now</button>
+          </div>
+      </div>
   </div>
 
   <div id="entryModal" class="modal hidden">
@@ -180,12 +213,12 @@
               <label class="field-label">AI Model Name</label>
               <div style="font-size: 12px; color: #78909C; margin-bottom: 8px;">
                   Google updates models often. Enter the model ID below.<br>
-                  <a href="https://ai.google.dev/models" target="_blank" style="color: #FBC02D; text-decoration: none;">📋 View list of available models</a>
               </div>
               <input type="text" id="modelNameInput" class="input" placeholder="e.g. gemini-2.5-flash" value="gemini-2.5-flash">
+              
               <label class="field-label" style="margin-top: 16px;">Custom Focus / Instructions</label>
               <div style="font-size: 12px; color: #78909C; margin-bottom: 8px;">
-                  Tell AI what to focus on (e.g., "Focus on future plans", "Be concise"). Leave empty for default.
+                  Tell AI what to focus on. Leave empty for default.
               </div>
               <textarea id="customPromptInput" class="textarea" rows="2" placeholder="e.g. Please give me strict advice..."></textarea>
 

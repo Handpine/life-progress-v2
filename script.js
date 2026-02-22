@@ -1,4 +1,11 @@
-console.log("Script Started - Vibe Coding! (Modal Padding Fix)"); 
+console.log("Script Started - Vibe Coding! (Offline + Time Travel + Retro Summary)"); 
+
+// [新增] 註冊離線 Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.log('SW setup failed: ', err));
+  });
+}
 
 const STORAGE_KEY = "lifeProgressEntries";
 const API_KEY_STORAGE = "geminiApiKey";
@@ -18,6 +25,7 @@ let currentUser = null;
 
 // DOM Elements
 const dateEl = document.getElementById("currentDate");
+const headerDatePicker = document.getElementById("headerDatePicker"); // [新增] 頂部隱藏日期選單
 const saveBtn = document.getElementById("saveBtn");
 const ccInput = document.getElementById("ccInput");
 const planInput = document.getElementById("planInput");
@@ -56,6 +64,15 @@ const confirmMessage = document.getElementById("confirmMessage");
 const confirmCancelBtn = document.getElementById("confirmCancelBtn");
 const confirmOkayBtn = document.getElementById("confirmOkayBtn");
 
+// Manual Summary Modal [新增]
+const manualSummaryBtn = document.getElementById("manualSummaryBtn");
+const summaryModal = document.getElementById("summaryModal");
+const summaryBackdrop = document.getElementById("summaryBackdrop");
+const summaryCloseBtn = document.getElementById("summaryCloseBtn");
+const summaryTypeSelect = document.getElementById("summaryTypeSelect");
+const summaryDateInput = document.getElementById("summaryDateInput");
+const execGenerateSummaryBtn = document.getElementById("execGenerateSummaryBtn");
+
 // Settings
 const settingsBtn = document.getElementById("settingsBtn");
 const settingsModal = document.getElementById("settingsModal");
@@ -92,10 +109,8 @@ async function init() {
   console.log("Init running...");
   updateHeaderDate(); 
   setupEventListeners();
-  // 移除了之前那個全域的 setupKeyboardHelpers，因為它會干擾 iPad
-  setupModalKeyboardFix(); // 改用這個針對 Modal 的專用修復
+  setupModalKeyboardFix(); 
   
-  // Load saved settings
   const existingKey = localStorage.getItem(API_KEY_STORAGE);
   if(existingKey && apiKeyInput) apiKeyInput.value = existingKey;
   
@@ -106,12 +121,21 @@ async function init() {
   if(savedModel && modelNameInput) {
       modelNameInput.value = savedModel;
   } else if (modelNameInput) {
-      modelNameInput.value = "gemini-2.5-flash"; // Default
+      modelNameInput.value = "gemini-2.5-flash"; 
   }
 
   const sbUrl = localStorage.getItem(SB_URL_STORAGE);
   const sbKey = localStorage.getItem(SB_KEY_STORAGE);
   
+  // [修正] 離線狀態直接跳過 Supabase 初始化，秒開 Local
+  if (!navigator.onLine) {
+      console.log("Offline mode detected. Loading local only.");
+      entries = loadLocalEntries();
+      renderInitialViews();
+      checkAiTriggers();
+      return;
+  }
+
   if (sbUrl && sbKey) {
       initSupabase(sbUrl, sbKey);
   } else {
@@ -121,30 +145,19 @@ async function init() {
   }
 }
 
-// [重點修復] 針對 Settings Modal 的鍵盤遮擋問題
-// 原理：當輸入框聚焦時，強制把容器底部撐開 400px，讓瀏覽器有空間把內容捲上來
 function setupModalKeyboardFix() {
-    // 找到 Settings Modal 裡面那個有 scroll 的容器
-    // 因為你在 HTML 裡是寫 inline style，我們用 querySelector 抓它
     const scrollContainer = document.querySelector('#settingsModal .modal-content > div:nth-child(2)');
-    
     if (!scrollContainer) return;
 
     const inputs = scrollContainer.querySelectorAll('input, textarea');
-
     inputs.forEach(input => {
         input.addEventListener('focus', () => {
-            // 當開始打字時，底部增加巨大空間 (45vh)，確保內容可以被推到鍵盤上方
             scrollContainer.style.paddingBottom = '45vh';
-            
-            // 稍微延遲一點點，讓鍵盤動畫開始後再捲動
             setTimeout(() => {
                 input.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 100);
         });
-
         input.addEventListener('blur', () => {
-            // 離開輸入框時，復原底部空間
             scrollContainer.style.paddingBottom = '20px';
         });
     });
@@ -152,7 +165,9 @@ function setupModalKeyboardFix() {
 
 function initSupabase(url, key) {
     if (!window.supabase) {
-        console.error("Supabase SDK not loaded");
+        console.error("Supabase SDK not loaded (likely offline)");
+        entries = loadLocalEntries();
+        renderInitialViews();
         return;
     }
     try {
@@ -166,7 +181,7 @@ function initSupabase(url, key) {
 }
 
 async function checkUserSession() {
-    if(!supabaseClient) return;
+    if(!supabaseClient || !navigator.onLine) return;
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         currentUser = session.user;
@@ -191,18 +206,17 @@ function updateAuthUI(isLoggedIn) {
 }
 
 async function syncEntries() {
-    if (!supabaseClient || !currentUser) return;
+    if (!supabaseClient || !currentUser || !navigator.onLine) return;
     showLoading("Syncing...");
     
-    const { data, error } = await supabaseClient
-        .from('entries')
-        .select('*')
-        .order('created_at', { ascending: false });
+    try {
+        const { data, error } = await supabaseClient
+            .from('entries')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-    if (error) {
-        console.error("Sync error:", error);
-        alert("Sync failed: " + error.message);
-    } else {
+        if (error) throw error;
+        
         entries = data.map(row => {
             return {
                 id: row.id, 
@@ -217,16 +231,18 @@ async function syncEntries() {
                 updatedAt: row.updated_at
             };
         });
-        
         saveLocalEntries(); 
-        renderInitialViews();
+    } catch (e) {
+        console.error("Sync error:", e);
     }
+    
+    renderInitialViews();
     hideLoading();
 }
 
 async function uploadEntry(entry) {
-    if (!supabaseClient || !currentUser) {
-        saveLocalEntries();
+    if (!supabaseClient || !currentUser || !navigator.onLine) {
+        saveLocalEntries(); // 離線直接存 Local
         return;
     }
     
@@ -248,16 +264,12 @@ async function uploadEntry(entry) {
         .from('entries')
         .upsert(dbPayload, { onConflict: 'id' });
 
-    if (error) {
-        console.error("Upload error", error);
-        alert("Cloud save failed, saved locally.");
-    }
-    
+    if (error) console.error("Upload error", error);
     saveLocalEntries();
 }
 
 async function deleteEntryCloud(id) {
-    if (supabaseClient && currentUser) {
+    if (supabaseClient && currentUser && navigator.onLine) {
         const { error } = await supabaseClient.from('entries').delete().eq('id', id);
         if (error) console.error("Delete error", error);
     }
@@ -265,6 +277,7 @@ async function deleteEntryCloud(id) {
 
 // ... Auth Actions ...
 async function handleLogin() {
+    if(!navigator.onLine) return showAuthMsg("Cannot login offline.", true);
     const url = sbUrlInput.value.trim();
     const key = sbKeyInput.value.trim();
     const email = emailInput.value.trim();
@@ -293,6 +306,7 @@ async function handleLogin() {
 }
 
 async function handleSignUp() {
+    if(!navigator.onLine) return showAuthMsg("Cannot signup offline.", true);
     const url = sbUrlInput.value.trim();
     const key = sbKeyInput.value.trim();
     const email = emailInput.value.trim();
@@ -418,7 +432,13 @@ function checkAiTriggers() {
     }
 }
 
-async function handleGenerateSummary(type, overwriteId = null) {
+// [修正] 支援手動指定結算日的 Summary
+async function handleGenerateSummary(type, overwriteId = null, customEndDateStr = null) {
+    if (!navigator.onLine) {
+        alert("AI features require an internet connection.");
+        return;
+    }
+
     const apiKey = localStorage.getItem(API_KEY_STORAGE);
     const customPrompt = localStorage.getItem(CUSTOM_PROMPT_STORAGE) || ""; 
     const modelName = localStorage.getItem(MODEL_NAME_STORAGE) || "gemini-2.5-flash"; 
@@ -429,12 +449,13 @@ async function handleGenerateSummary(type, overwriteId = null) {
         return;
     }
 
-    const now = new Date();
-    now.setHours(23, 59, 59, 999);
-    let startDate = new Date();
+    // 決定計算的「基準日」(預設是今天，若手動選擇則是選擇的那一天)
+    const baseDate = customEndDateStr ? new Date(customEndDateStr) : new Date();
+    baseDate.setHours(23, 59, 59, 999);
     
+    let startDate = new Date(baseDate);
     if (type === 'weekly') {
-        startDate.setDate(now.getDate() - 7);
+        startDate.setDate(baseDate.getDate() - 7);
     } else {
         startDate.setDate(1); 
     }
@@ -443,11 +464,11 @@ async function handleGenerateSummary(type, overwriteId = null) {
     const relevantEntries = entries.filter(e => {
         if (e.type === 'summary') return false;
         const eDate = new Date(e.createdAt);
-        return eDate >= startDate && eDate <= now;
+        return eDate >= startDate && eDate <= baseDate;
     });
 
     if (relevantEntries.length === 0) {
-        alert("No entries found for this period to summarize.");
+        alert(`No entries found between ${startDate.toLocaleDateString()} and ${baseDate.toLocaleDateString()} to summarize.`);
         return;
     }
 
@@ -475,18 +496,17 @@ The user has provided a specific requirement. You MUST follow this instruction a
     promptText += `[USER NOTES END]\n`;
     promptText += `Please generate the summary now, strictly following the [CRITICAL USER INSTRUCTION].`;
 
-    console.log("Sending Prompt:", promptText);
-
     showLoading("Thinking...");
     try {
         const resultText = await callGeminiAPI(apiKey, promptText, modelName);
         
         const newId = overwriteId || generateUUID(); 
-
+        
+        // 確保生成的 Summary 日期是該計算週期的「最後一天」
         const summaryEntry = {
             id: newId,
-            createdAt: overwriteId ? (entries.find(e => e.id === overwriteId)?.createdAt || Date.now()) : Date.now(),
-            dateKey: toDateKey(new Date()),
+            createdAt: baseDate.getTime(), // 綁定在該結算日
+            dateKey: toDateKey(baseDate),
             type: 'summary',
             summaryType: type,
             chiefComplaint: `🌻 ${type.charAt(0).toUpperCase() + type.slice(1)}`,
@@ -507,6 +527,8 @@ The user has provided a specific requirement. You MUST follow this instruction a
         
         hideLoading();
         aiActionArea.classList.add('hidden');
+        summaryModal.classList.add("hidden");
+        
         toggleView('list');
         switchTab('tab-history');
         
@@ -518,15 +540,11 @@ The user has provided a specific requirement. You MUST follow this instruction a
 
 async function callGeminiAPI(key, prompt, model) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-    
-    console.log(`Calling API with model: ${model}`);
-
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
-
     if (!response.ok) {
         const err = await response.json();
         throw new Error(err.error?.message || `API Failed (${response.status})`);
@@ -561,6 +579,32 @@ function closeConfirmModal() {
 
 function setupEventListeners() {
   saveBtn.addEventListener("click", handleSave);
+
+  // [新增] 隱藏式日期選擇器：監聽改變
+  headerDatePicker.addEventListener("change", (e) => {
+      if(!e.target.value) return;
+      const [y, m, d] = e.target.value.split("-").map(Number);
+      const pickedDate = new Date(y, m - 1, d);
+      
+      if (isFutureDate(pickedDate)) {
+          alert("Cannot time-travel to the future.");
+          e.target.value = '';
+          return;
+      }
+      
+      targetDate = pickedDate;
+      updateHeaderDate();
+      
+      if (isPastDate(targetDate)) {
+          saveBtn.textContent = "Save Past Entry";
+      } else {
+          saveBtn.textContent = "Save";
+      }
+      
+      // 自動切換到 Write 頁面方便寫入
+      closeModal();
+      switchTab("tab-write");
+  });
 
   bottomTabButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -599,6 +643,20 @@ function setupEventListeners() {
   confirmOkayBtn.addEventListener("click", () => {
       if (confirmCallback) confirmCallback();
       closeConfirmModal();
+  });
+
+  // [新增] Manual Summary 彈窗控制
+  manualSummaryBtn.addEventListener("click", () => {
+      summaryDateInput.value = toDateKey(new Date()); // 預設今天
+      summaryModal.classList.remove("hidden");
+  });
+  summaryCloseBtn.addEventListener("click", () => summaryModal.classList.add("hidden"));
+  summaryBackdrop.addEventListener("click", () => summaryModal.classList.add("hidden"));
+  
+  execGenerateSummaryBtn.addEventListener("click", () => {
+      const type = summaryTypeSelect.value;
+      const dateStr = summaryDateInput.value;
+      handleGenerateSummary(type, null, dateStr);
   });
 
   settingsBtn.addEventListener("click", () => {
@@ -648,7 +706,7 @@ function setupEventListeners() {
           const entry = entries.find(e => e.id === longPressTargetId);
           if (entry && entry.type === 'summary') {
               closeActionSheet();
-              handleGenerateSummary(entry.summaryType, entry.id);
+              handleGenerateSummary(entry.summaryType, entry.id); // 對舊的重新整理
           }
       }
   });
@@ -724,6 +782,7 @@ async function handleSave() {
   if (!targetDate) {
       now.setHours(new Date().getHours(), new Date().getMinutes());
   } else {
+      // 確保跨日寫的筆記能落在選定的日期
       now.setHours(12, 0, 0); 
   }
 
@@ -734,6 +793,10 @@ async function handleSave() {
       entries[index].plan = plan;
       entries[index].gratitude = gratitude;
       entries[index].note = note;
+      
+      // [修正] 如果在編輯時改了時間，連同 dateKey 和 createdAt 一起更新
+      entries[index].dateKey = toDateKey(now);
+      entries[index].createdAt = now.getTime(); 
       entries[index].updatedAt = new Date().getTime();
       
       saveLocalEntries(); 
