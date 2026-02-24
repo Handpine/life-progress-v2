@@ -1,4 +1,4 @@
-console.log("Script Started - Vibe Coding! (Custom Date Picker + Perfect 2-Way Sync)"); 
+console.log("Script Started - Vibe Coding! (Custom Date Picker + Perfect 2-Way Sync + History Date Readonly)"); 
 
 // 註冊離線 Service Worker
 if ('serviceWorker' in navigator) {
@@ -68,10 +68,10 @@ const summaryModal = document.getElementById("summaryModal");
 const summaryBackdrop = document.getElementById("summaryBackdrop");
 const summaryCloseBtn = document.getElementById("summaryCloseBtn");
 const summaryTypeSelect = document.getElementById("summaryTypeSelect");
-const summaryDateDisplay = document.getElementById("summaryDateDisplay"); // [修正]
+const summaryDateDisplay = document.getElementById("summaryDateDisplay");
 const execGenerateSummaryBtn = document.getElementById("execGenerateSummaryBtn");
 
-// Custom Date Modal [新增]
+// Custom Date Modal
 const customDateModal = document.getElementById("customDateModal");
 const customDateBackdrop = document.getElementById("customDateBackdrop");
 const customDateCloseBtn = document.getElementById("customDateCloseBtn");
@@ -156,7 +156,7 @@ async function init() {
 }
 
 // ==========================================
-// [新增] 離線雙向同步佇列 (Offline Queue System)
+// 離線雙向同步佇列 (Offline Queue System)
 // ==========================================
 function getPendingSync() {
     try {
@@ -490,7 +490,7 @@ function updateHeaderDate() {
 }
 
 // ==========================================
-// [新增] 專屬日曆選擇器邏輯 (Custom Date Picker)
+// 專屬日曆選擇器邏輯 (Custom Date Picker)
 // ==========================================
 function openCustomDatePicker(mode) {
     customDateMode = mode;
@@ -529,7 +529,7 @@ function renderCustomDatePicker(highlightDate) {
         const dateObj = new Date(y, m, d);
        
         const cell = document.createElement("div");
-        cell.className = "calendar-cell"; // 借用原本的 css 框架
+        cell.className = "calendar-cell"; 
         
         let innerHTML = `<div class="calendar-cell-inner">${d}</div>`;
         cell.innerHTML = innerHTML;
@@ -556,7 +556,7 @@ function handleCustomDateSelect(dateStr) {
 
     if (customDateMode === 'header') {
         if (dateStr === toDateKey(new Date())) {
-            targetDate = null; // 完美的「回到今天」邏輯
+            targetDate = null; 
         } else {
             targetDate = pickedDate;
         }
@@ -748,7 +748,7 @@ function closeConfirmModal() {
 }
 
 function setupEventListeners() {
-  // [新增] 監聽網路連線恢復，自動觸發同步還債
+  // 監聽網路連線恢復，自動觸發同步還債
   window.addEventListener('online', async () => {
       console.log("🌐 Network came back online!");
       if (currentUser && supabaseClient) {
@@ -758,9 +758,11 @@ function setupEventListeners() {
 
   saveBtn.addEventListener("click", handleSave);
 
-  // [修正] 點擊標題呼叫客製化日曆
+  // [修正] 點擊標題呼叫客製化日曆 (僅限 Write 頁面)
   dateEl.addEventListener("click", () => {
-      openCustomDatePicker('header');
+      if (!document.getElementById('tab-write').classList.contains('tab-page-hidden')) {
+          openCustomDatePicker('header');
+      }
   });
 
   bottomTabButtons.forEach((btn) => {
@@ -917,12 +919,18 @@ function switchTab(tabId) {
   const activeBtn = document.querySelector(`[data-target="${tabId}"]`);
   if (activeBtn) activeBtn.classList.add("tab-btn-active");
  
+  // [修正] 根據當前 Tab 調整日期的互動性
   if (tabId === "tab-history") {
-    if (calendarView.classList.contains("list-view-hidden")) {
-         renderList(searchInput.value.toLowerCase());
-    } else {
-         renderCalendar();
-    }
+      dateEl.style.cursor = "default";
+      dateEl.removeAttribute("title");
+      if (calendarView.classList.contains("list-view-hidden")) {
+           renderList(searchInput.value.toLowerCase());
+      } else {
+           renderCalendar();
+      }
+  } else {
+      dateEl.style.cursor = "pointer";
+      dateEl.setAttribute("title", "Tap to change date");
   }
 }
 
