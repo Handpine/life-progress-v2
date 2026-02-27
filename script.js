@@ -1,4 +1,4 @@
-console.log("Script Started - Vibe Coding! (Custom Date Picker + Perfect 2-Way Sync + History Date Readonly)"); 
+console.log("Script Started - Vibe Coding! (Custom Date Picker + Perfect 2-Way Sync + History Date Readonly + Beautiful Markdown)"); 
 
 // 註冊離線 Service Worker
 if ('serviceWorker' in navigator) {
@@ -8,7 +8,7 @@ if ('serviceWorker' in navigator) {
 }
 
 const STORAGE_KEY = "lifeProgressEntries";
-const PENDING_SYNC_STORAGE = "lifeProgressPendingSync"; // [新增] 離線佇列
+const PENDING_SYNC_STORAGE = "lifeProgressPendingSync"; // 離線佇列
 const API_KEY_STORAGE = "geminiApiKey";
 const CUSTOM_PROMPT_STORAGE = "geminiCustomPrompt"; 
 const MODEL_NAME_STORAGE = "geminiModelName"; 
@@ -153,6 +153,33 @@ async function init() {
       renderInitialViews();
       checkAiTriggers();
   }
+}
+
+// ==========================================
+// 輕量級 Markdown 解析器
+// ==========================================
+function parseMarkdown(text) {
+    if (!text) return '';
+    
+    // 預防 HTML 注入
+    let html = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    
+    // 標題 (H1, H2, H3) -> 結尾吃掉換行符號避免 pre-wrap 產生過多空白
+    html = html.replace(/^### (.*?)(?:\r?\n|$)/gm, '<div class="md-h3">$1</div>');
+    html = html.replace(/^## (.*?)(?:\r?\n|$)/gm, '<div class="md-h2">$1</div>');
+    html = html.replace(/^# (.*?)(?:\r?\n|$)/gm, '<div class="md-h1">$1</div>');
+    
+    // 粗體與斜體
+    html = html.replace(/\*\*(.*?)\*\*/g, '<span class="md-bold">$1</span>');
+    html = html.replace(/\*(.*?)\*/g, '<span class="md-italic">$1</span>');
+    
+    // 無序清單 (* 或 - 開頭) -> 自動替換為向日葵
+    html = html.replace(/^[\*\-] (.*?)(?:\r?\n|$)/gm, '<div class="md-list-item"><span class="md-bullet">🌻</span><span style="flex:1;">$1</span></div>');
+    
+    // 有序清單 (1., 2. 開頭)
+    html = html.replace(/^(\d+\.) (.*?)(?:\r?\n|$)/gm, '<div class="md-list-item"><span class="md-number">$1</span><span style="flex:1;">$2</span></div>');
+    
+    return html;
 }
 
 // ==========================================
@@ -665,7 +692,8 @@ The user has provided a specific requirement. You MUST follow this instruction a
     });
     
     promptText += `[USER NOTES END]\n`;
-    promptText += `Please generate the summary now, strictly following the [CRITICAL USER INSTRUCTION].`;
+    // [重點] 強調要求輸出 Markdown
+    promptText += `Please generate the summary now, strictly following the [CRITICAL USER INSTRUCTION]. Use clean Markdown formatting (e.g., **bold**, -, #).`;
 
     showLoading("Thinking...");
     try {
@@ -758,7 +786,7 @@ function setupEventListeners() {
 
   saveBtn.addEventListener("click", handleSave);
 
-  // [修正] 點擊標題呼叫客製化日曆 (僅限 Write 頁面)
+  // 點擊標題呼叫客製化日曆 (僅限 Write 頁面)
   dateEl.addEventListener("click", () => {
       if (!document.getElementById('tab-write').classList.contains('tab-page-hidden')) {
           openCustomDatePicker('header');
@@ -919,7 +947,6 @@ function switchTab(tabId) {
   const activeBtn = document.querySelector(`[data-target="${tabId}"]`);
   if (activeBtn) activeBtn.classList.add("tab-btn-active");
  
-  // [修正] 根據當前 Tab 調整日期的互動性
   if (tabId === "tab-history") {
       dateEl.style.cursor = "default";
       dateEl.removeAttribute("title");
@@ -1082,11 +1109,6 @@ function renderCalendar() {
   }
 }
 
-function changeMonth(delta) {
-  currentMonth.setMonth(currentMonth.getMonth() + delta);
-  renderCalendar();
-}
-
 function renderList(filterText = "") {
   historyList.innerHTML = "";
   const sorted = sortEntriesDescending(entries);
@@ -1107,6 +1129,7 @@ function renderList(filterText = "") {
     if (isSummary) { item.classList.add('history-item-summary'); }
     const dateStr = new Date(e.createdAt).toLocaleDateString();
    
+    // [重點] 這裡呼叫 parseMarkdown 來解析文字，讓排版變美
     item.innerHTML = `
       <div class="history-item-header">
          <div>
@@ -1118,7 +1141,7 @@ function renderList(filterText = "") {
       <div class="history-item-details">
          ${e.plan ? `<strong>Plan:</strong><div class="list-text">${e.plan}</div><br>` : ''}
          ${e.gratitude ? `<strong>Gratitude:</strong><div class="list-text">${e.gratitude}</div><br>` : ''} 
-         ${e.note ? `<strong>${isSummary ? 'AI Analysis:' : 'Note:'}</strong><div class="list-text">${e.note}</div>` : ''}
+         ${e.note ? `<strong>${isSummary ? 'AI Analysis:' : 'Note:'}</strong><div class="list-text">${isSummary ? parseMarkdown(e.note) : e.note}</div>` : ''}
       </div>
     `;
     item.addEventListener("click", () => { item.classList.toggle("expanded"); });
@@ -1249,13 +1272,14 @@ function openDateModal(dateKey) {
         div.className = "history-item"; 
         if (e.type === 'summary') { div.classList.add('history-item-summary'); }
         
+        // [重點] 這裡也呼叫 parseMarkdown
         div.innerHTML = `
            <div class="history-item-date">${e.type === 'summary' ? 'AI Summary' : 'Entry'}</div>
            <div class="history-item-title">${e.chiefComplaint || '-'}</div>
            <div class="history-item-details" style="display:block; margin-top:8px; border:none;">
              ${e.plan ? `<strong>Plan:</strong><div class="list-text">${e.plan}</div><br>` : ''}
              ${e.gratitude ? `<strong>Gratitude:</strong><div class="list-text">${e.gratitude}</div><br>` : ''}
-             ${e.note ? `<strong>${e.type === 'summary' ? 'Analysis' : 'Note'}:</strong><div class="list-text">${e.note}</div>` : ''}
+             ${e.note ? `<strong>${e.type === 'summary' ? 'Analysis' : 'Note'}:</strong><div class="list-text">${e.type === 'summary' ? parseMarkdown(e.note) : e.note}</div>` : ''}
            </div>
         `;
         addLongPressEvent(div, e.id, 'item');
