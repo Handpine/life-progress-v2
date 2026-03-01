@@ -1,4 +1,4 @@
-console.log("Script Started - Vibe Coding! (Custom Date Picker + Perfect 2-Way Sync + History Date Readonly + Beautiful Markdown)"); 
+console.log("Script Started - Vibe Coding! (Month Rollover Bug Fixed)"); 
 
 // 註冊離線 Service Worker
 if ('serviceWorker' in navigator) {
@@ -16,7 +16,10 @@ const SB_URL_STORAGE = "sbUrl";
 const SB_KEY_STORAGE = "sbKey";
 
 let entries = [];
+// [Bug修復] 加上 setDate(1) 避免月底開啟 App 時，發生換月溢位的 Bug
 let currentMonth = new Date();
+currentMonth.setDate(1); 
+
 let longPressTimer = null;
 let longPressTargetId = null;
 let editingEntryId = null;
@@ -83,6 +86,7 @@ const cdmCalendarGrid = document.getElementById("cdmCalendarGrid");
 
 let customDateMode = 'header'; // 判斷目前是 header 選日期還是 summary 選日期
 let cdmCurrentMonth = new Date();
+cdmCurrentMonth.setDate(1); // 確保自訂日曆的初始化也是 1 號
 let selectedSummaryDate = null; // Summary 專用的暫存日期
 
 const settingsBtn = document.getElementById("settingsBtn");
@@ -692,7 +696,6 @@ The user has provided a specific requirement. You MUST follow this instruction a
     });
     
     promptText += `[USER NOTES END]\n`;
-    // [重點] 強調要求輸出 Markdown
     promptText += `Please generate the summary now, strictly following the [CRITICAL USER INSTRUCTION]. Use clean Markdown formatting (e.g., **bold**, -, #).`;
 
     showLoading("Thinking...");
@@ -810,8 +813,11 @@ function setupEventListeners() {
 
   calendarViewBtn.addEventListener("click", () => toggleView("calendar"));
   listViewBtn.addEventListener("click", () => toggleView("list"));
+  
+  // [Bug修復] 歷史頁面換月按鈕
   prevMonthBtn.addEventListener("click", () => changeMonth(-1));
   nextMonthBtn.addEventListener("click", () => changeMonth(1));
+  
   searchInput.addEventListener("input", (e) => {
     const term = e.target.value.toLowerCase();
     if (term.length > 0) { toggleView("list"); }
@@ -852,10 +858,12 @@ function setupEventListeners() {
   customDateCloseBtn.addEventListener("click", () => customDateModal.classList.add("hidden"));
   customDateBackdrop.addEventListener("click", () => customDateModal.classList.add("hidden"));
   cdmTodayBtn.addEventListener("click", () => handleCustomDateSelect(toDateKey(new Date())));
+  
   cdmPrevMonthBtn.addEventListener("click", () => {
       cdmCurrentMonth.setMonth(cdmCurrentMonth.getMonth() - 1);
       renderCustomDatePicker();
   });
+  
   cdmNextMonthBtn.addEventListener("click", () => {
       const newMonth = new Date(cdmCurrentMonth.getFullYear(), cdmCurrentMonth.getMonth() + 1, 1);
       if(!isFutureDate(newMonth)) {
@@ -1109,6 +1117,13 @@ function renderCalendar() {
   }
 }
 
+// [Bug修復] 歷史頁面換月函式：加上 setDate(1) 避免換月 Bug
+function changeMonth(delta) {
+  currentMonth.setDate(1); 
+  currentMonth.setMonth(currentMonth.getMonth() + delta);
+  renderCalendar();
+}
+
 function renderList(filterText = "") {
   historyList.innerHTML = "";
   const sorted = sortEntriesDescending(entries);
@@ -1129,7 +1144,6 @@ function renderList(filterText = "") {
     if (isSummary) { item.classList.add('history-item-summary'); }
     const dateStr = new Date(e.createdAt).toLocaleDateString();
    
-    // [重點] 這裡呼叫 parseMarkdown 來解析文字，讓排版變美
     item.innerHTML = `
       <div class="history-item-header">
          <div>
@@ -1272,7 +1286,6 @@ function openDateModal(dateKey) {
         div.className = "history-item"; 
         if (e.type === 'summary') { div.classList.add('history-item-summary'); }
         
-        // [重點] 這裡也呼叫 parseMarkdown
         div.innerHTML = `
            <div class="history-item-date">${e.type === 'summary' ? 'AI Summary' : 'Entry'}</div>
            <div class="history-item-title">${e.chiefComplaint || '-'}</div>
