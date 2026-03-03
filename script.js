@@ -1,4 +1,4 @@
-console.log("Script Started - Vibe Coding! (Month Rollover Bug Fixed)"); 
+console.log("Script Started - Vibe Coding! (Smart Daily Note Merge)"); 
 
 // 註冊離線 Service Worker
 if ('serviceWorker' in navigator) {
@@ -168,7 +168,7 @@ function parseMarkdown(text) {
     // 預防 HTML 注入
     let html = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
     
-    // 標題 (H1, H2, H3) -> 結尾吃掉換行符號避免 pre-wrap 產生過多空白
+    // 標題 (H1, H2, H3)
     html = html.replace(/^### (.*?)(?:\r?\n|$)/gm, '<div class="md-h3">$1</div>');
     html = html.replace(/^## (.*?)(?:\r?\n|$)/gm, '<div class="md-h2">$1</div>');
     html = html.replace(/^# (.*?)(?:\r?\n|$)/gm, '<div class="md-h1">$1</div>');
@@ -177,7 +177,7 @@ function parseMarkdown(text) {
     html = html.replace(/\*\*(.*?)\*\*/g, '<span class="md-bold">$1</span>');
     html = html.replace(/\*(.*?)\*/g, '<span class="md-italic">$1</span>');
     
-    // 無序清單 (* 或 - 開頭) -> 自動替換為向日葵
+    // 無序清單 (* 或 - 開頭)
     html = html.replace(/^[\*\-] (.*?)(?:\r?\n|$)/gm, '<div class="md-list-item"><span class="md-bullet">🌻</span><span style="flex:1;">$1</span></div>');
     
     // 有序清單 (1., 2. 開頭)
@@ -318,7 +318,6 @@ function updateAuthUI(isLoggedIn) {
 async function syncEntries() {
     if (!supabaseClient || !currentUser || !navigator.onLine) return;
     
-    // [重點] 永遠先還債！確保離線資料先上傳，才拉取新資料
     await processPendingSync();
 
     showLoading("Syncing...");
@@ -779,7 +778,6 @@ function closeConfirmModal() {
 }
 
 function setupEventListeners() {
-  // 監聽網路連線恢復，自動觸發同步還債
   window.addEventListener('online', async () => {
       console.log("🌐 Network came back online!");
       if (currentUser && supabaseClient) {
@@ -789,7 +787,6 @@ function setupEventListeners() {
 
   saveBtn.addEventListener("click", handleSave);
 
-  // 點擊標題呼叫客製化日曆 (僅限 Write 頁面)
   dateEl.addEventListener("click", () => {
       if (!document.getElementById('tab-write').classList.contains('tab-page-hidden')) {
           openCustomDatePicker('header');
@@ -814,7 +811,6 @@ function setupEventListeners() {
   calendarViewBtn.addEventListener("click", () => toggleView("calendar"));
   listViewBtn.addEventListener("click", () => toggleView("list"));
   
-  // [Bug修復] 歷史頁面換月按鈕
   prevMonthBtn.addEventListener("click", () => changeMonth(-1));
   nextMonthBtn.addEventListener("click", () => changeMonth(1));
   
@@ -988,6 +984,9 @@ function startNewEntryForDate(dateStr) {
     switchTab("tab-write");
 }
 
+// ==========================================
+// [重製] 智慧合併邏輯 (Smart Daily Note Merge)
+// ==========================================
 async function handleSave() {
   const cc = ccInput.value.trim();
   const plan = planInput.value.trim();
@@ -1003,7 +1002,10 @@ async function handleSave() {
       now.setHours(12, 0, 0); 
   }
 
+  const dateKeyToSave = toDateKey(now);
+
   if (editingEntryId) {
+    // 原本的編輯邏輯 (覆蓋)
     const index = entries.findIndex(e => e.id === editingEntryId);
     if (index !== -1) {
       entries[index].chiefComplaint = cc;
@@ -1011,7 +1013,7 @@ async function handleSave() {
       entries[index].gratitude = gratitude;
       entries[index].note = note;
       
-      entries[index].dateKey = toDateKey(now);
+      entries[index].dateKey = dateKeyToSave;
       entries[index].createdAt = now.getTime(); 
       entries[index].updatedAt = new Date().getTime();
       
@@ -1025,27 +1027,63 @@ async function handleSave() {
     switchTab("tab-history");
    
   } else {
-    const newEntry = {
-      id: generateUUID(),
-      createdAt: now.getTime(),
-      dateKey: toDateKey(now),
-      chiefComplaint: cc,
-      plan: plan,
-      gratitude: gratitude,
-      note: note,
-      type: 'entry' 
-    };
-    entries.unshift(newEntry);
-    
-    saveLocalEntries(); 
-    await uploadEntry(newEntry);
+    // 檢查當天是否已經有一般筆記 (排除 summary)
+    const existingIndex = entries.findIndex(e => e.dateKey === dateKeyToSave && e.type !== 'summary');
+
+    if (existingIndex !== -1) {
+        // [重點] 執行智慧合併 (Merge)
+        if (cc) {
+            entries[existingIndex].chiefComplaint = entries[existingIndex].chiefComplaint 
+                ? entries[existingIndex].chiefComplaint + ", " + cc 
+                : cc;
+        }
+        if (plan) {
+            entries[existingIndex].plan = entries[existingIndex].plan 
+                ? entries[existingIndex].plan + "\n" + plan 
+                : plan;
+        }
+        if (gratitude) {
+            entries[existingIndex].gratitude = entries[existingIndex].gratitude 
+                ? entries[existingIndex].gratitude + "\n" + gratitude 
+                : gratitude;
+        }
+        if (note) {
+            entries[existingIndex].note = entries[existingIndex].note 
+                ? entries[existingIndex].note + "\n" + note 
+                : note;
+        }
+        
+        entries[existingIndex].updatedAt = new Date().getTime();
+        saveLocalEntries();
+        await uploadEntry(entries[existingIndex]);
+
+    } else {
+        // 沒有紀錄，創建全新的一篇
+        const newEntry = {
+          id: generateUUID(),
+          createdAt: now.getTime(),
+          dateKey: dateKeyToSave,
+          chiefComplaint: cc,
+          plan: plan,
+          gratitude: gratitude,
+          note: note,
+          type: 'entry' 
+        };
+        entries.unshift(newEntry);
+        
+        saveLocalEntries(); 
+        await uploadEntry(newEntry);
+    }
    
+    // 儲存或合併完成後，重置並跳回歷史區看成果
     targetDate = null;
     updateHeaderDate();
     saveBtn.textContent = "Save";
     clearInputs();
+    switchTab("tab-history"); 
   }
 }
+// ==========================================
 
 function clearInputs() {
   if(ccInput) ccInput.value = "";
@@ -1117,7 +1155,6 @@ function renderCalendar() {
   }
 }
 
-// [Bug修復] 歷史頁面換月函式：加上 setDate(1) 避免換月 Bug
 function changeMonth(delta) {
   currentMonth.setDate(1); 
   currentMonth.setMonth(currentMonth.getMonth() + delta);
